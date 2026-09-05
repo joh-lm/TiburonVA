@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 923e2add3faf54d4cb14fdf4e97b1f1c, type: 3}
   m_Name: QuestTest1
   m_EditorClassIdentifier: Assembly-CSharp::QuestData
-  questTitle: New Quest
+  questTitle: GoToLoc3
   description: 
   energyCostToFulfill: 1
   goalType: 0
-  targetLocationName: 
+  targetLocationName: Loc3
   targetUnitName: 
   rewardMoney: 50
   rewardEnergy: 1
