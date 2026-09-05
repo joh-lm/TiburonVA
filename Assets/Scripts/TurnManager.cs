@@ -21,6 +21,8 @@ public class TurnManager : MonoBehaviour
 
     private List<int> playerEnergyPoints = new List<int>();
     private int currentUnitIndex = 0;
+    private NodePlatform[] allNodes;
+    private bool wasMoving = false;
 
     public event Action<PathClickMovement> OnTurnStarted;
     public PathClickMovement CurrentUnit => units.Count > 0 ? units[currentUnitIndex] : null;
@@ -38,8 +40,19 @@ public class TurnManager : MonoBehaviour
 
     private void Start()
     {
+        allNodes = FindObjectsOfType<NodePlatform>();
         HideHoverCost();
         InitializeTurnSystem();
+    }
+
+    private void Update()
+    {
+        // Monitor movement completion to refresh the range visualizer once unit arrives
+        if (wasMoving && !IsUnitBusy())
+        {
+            wasMoving = false;
+            UpdateReachableHighlights();
+        }
     }
 
     public void InitializeTurnSystem()
@@ -69,12 +82,12 @@ public class TurnManager : MonoBehaviour
         playerEnergyPoints[currentUnitIndex] += energyGainPerTurn;
 
         UpdateTurnUI();
+        UpdateReachableHighlights();
         OnTurnStarted?.Invoke(CurrentUnit);
     }
 
     public void EndTurn()
     {
-        // Block ending turn while active unit is moving
         if (IsUnitBusy())
         {
             Debug.Log("Cannot end turn while unit is moving!");
@@ -100,7 +113,35 @@ public class TurnManager : MonoBehaviour
         if (CanAfford(cost))
         {
             playerEnergyPoints[currentUnitIndex] -= cost;
+            wasMoving = true;
             UpdateTurnUI();
+            ClearReachableHighlights(); // Clear highlights while moving
+        }
+    }
+
+    public void UpdateReachableHighlights()
+    {
+        ClearReachableHighlights();
+
+        if (CurrentUnit == null) return;
+
+        NodePlatform currentNode = NodePlatform.GetNodeAtPosition(CurrentUnit.transform.position);
+        if (currentNode != null)
+        {
+            HashSet<NodePlatform> reachableNodes = NodePlatform.GetReachableNodes(currentNode, CurrentEnergy);
+            foreach (NodePlatform node in reachableNodes)
+            {
+                node.SetReachableState(true);
+            }
+        }
+    }
+
+    public void ClearReachableHighlights()
+    {
+        if (allNodes == null) allNodes = FindObjectsOfType<NodePlatform>();
+        foreach (NodePlatform node in allNodes)
+        {
+            node.SetReachableState(false);
         }
     }
 
