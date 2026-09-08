@@ -28,6 +28,8 @@ public class TurnManager : MonoBehaviour
     public PathClickMovement CurrentUnit => units.Count > 0 ? units[currentUnitIndex] : null;
     public int CurrentEnergy => playerEnergyPoints.Count > currentUnitIndex ? playerEnergyPoints[currentUnitIndex] : 0;
 
+    public List<PathClickMovement> AllUnits => units;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -182,6 +184,31 @@ public class TurnManager : MonoBehaviour
         {
             units.Add(unit);
             playerEnergyPoints.Add(startingEnergy);
+        }
+    }
+
+    public void HighlightReachableNodes()
+    {
+        if (CurrentUnit == null) return;
+
+        NodePlatform currentNode = NodePlatform.GetNodeAtPosition(CurrentUnit.transform.position);
+        if (currentNode != null)
+        {
+            // 1. Reset all node visual highlights across the scene
+            NodePlatform[] allNodes = FindObjectsByType<NodePlatform>(FindObjectsSortMode.None);
+            foreach (var node in allNodes)
+            {
+                node.ResetVisuals();
+            }
+
+            // 2. Recalculate reachable nodes using current unit energy
+            HashSet<NodePlatform> reachableNodes = NodePlatform.GetReachableNodes(currentNode, CurrentEnergy);
+
+            // 3. Enable glow overlay on valid nodes
+            foreach (var node in reachableNodes)
+            {
+                node.SetReachableState(true);
+            }
         }
     }
 }

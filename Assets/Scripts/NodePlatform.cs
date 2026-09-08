@@ -3,12 +3,21 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
+public enum NodeType
+{
+    Location,
+    Junction
+}
+
 [RequireComponent(typeof(Collider))]
 public class NodePlatform : MonoBehaviour
 {
+    [Header("Node Configuration")]
+    [SerializeField] private NodeType nodeType = NodeType.Location;
+
     [Header("Graph Connections")]
-    [Tooltip("Drag all directly adjacent NodePlatforms that can be reached from this location.")]
-    [SerializeField] private List<NodePlatform> neighbors = new List<NodePlatform>();
+    [Tooltip("List of NodeConnections attached to this node platform or junction.")]
+    [SerializeField] private List<NodeConnection> connections = new List<NodeConnection>();
 
     [Header("Movement Cost")]
     [SerializeField] private int baseMoveCost = 1;
@@ -19,9 +28,8 @@ public class NodePlatform : MonoBehaviour
     [SerializeField] private Color unreachableHoverColor = Color.red;
 
     [Header("Glow Overlay Visuals")]
-    [Tooltip("Child GameObject representing the glow effect/ring. If unassigned, one will be created automatically.")]
     [SerializeField] private GameObject glowOverlay;
-    [SerializeField] private Color glowColor = new Color(0.2f, 0.8f, 1f, 0.5f); // Light cyan glow
+    [SerializeField] private Color glowColor = new Color(0.2f, 0.8f, 1f, 0.5f);
 
     [Header("Edge Safety Padding")]
     [SerializeField] private float edgePadding = 0.2f;
@@ -31,26 +39,17 @@ public class NodePlatform : MonoBehaviour
     private Renderer overlayRenderer;
     private bool isReachable = false;
 
-    public List<NodePlatform> Neighbors => neighbors;
+    public NodeType Type => nodeType;
+    public List<NodeConnection> Connections => connections;
     public int BaseMoveCost => baseMoveCost;
 
     private void Awake()
     {
         platformRenderer = GetComponent<Renderer>();
         platformCollider = GetComponent<Collider>();
-
         SetupGlowOverlay();
     }
 
-    private void Start()
-    {
-        // Note: ResetVisuals() is excluded here to avoid race-condition bugs 
-        // with TurnManager frame-1 highlights.
-    }
-
-    /// <summary>
-    /// Creates a subtle overlay disc/quad on top of the node if none was assigned in the Inspector.
-    /// </summary>
     private void SetupGlowOverlay()
     {
         if (glowOverlay == null)
@@ -61,7 +60,7 @@ public class NodePlatform : MonoBehaviour
             
             float surfaceY = platformCollider != null ? platformCollider.bounds.extents.y + 0.02f : 0.52f;
             glowOverlay.transform.localPosition = new Vector3(0f, surfaceY, 0f);
-            glowOverlay.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // Rotate flat facing UP
+            glowOverlay.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             glowOverlay.transform.localScale = Vector3.one * (GetTopSurfaceRadius() * 1.8f);
 
             Collider col = glowOverlay.GetComponent<Collider>();
@@ -79,11 +78,11 @@ public class NodePlatform : MonoBehaviour
         glowOverlay.SetActive(false);
     }
 
-    /// <summary>
-    /// Highlights or hides the subtle overlay depending on reachability.
-    /// </summary>
     public void SetReachableState(bool reachable)
     {
+        // Only show reachable glow overlays on actual Locations, not on Junction waypoints
+        if (nodeType == NodeType.Junction) return;
+
         isReachable = reachable;
         if (glowOverlay != null)
         {
@@ -113,6 +112,7 @@ public class NodePlatform : MonoBehaviour
     private void OnMouseEnter()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+        if (nodeType == NodeType.Junction) return; // Junctions cannot be targeted for stopping
 
         PathClickMovement activeUnit = TurnManager.Instance != null ? TurnManager.Instance.CurrentUnit : null;
         if (activeUnit == null) return;
@@ -148,6 +148,7 @@ public class NodePlatform : MonoBehaviour
     private void OnMouseDown()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+        if (nodeType == NodeType.Junction) return; // Ignore direct destination clicks on Junctions
         if (TurnManager.Instance == null || TurnManager.Instance.IsUnitBusy()) return;
 
         PathClickMovement activeCharacter = TurnManager.Instance.CurrentUnit;
@@ -155,14 +156,12 @@ public class NodePlatform : MonoBehaviour
 
         NodePlatform currentUnitNode = GetNodeAtPosition(activeCharacter.transform.position);
 
-        // 1. If clicking the node the unit is ALREADY standing on:
         if (this == currentUnitNode)
         {
             ProcessNodeInteractions(activeCharacter);
             return;
         }
 
-        // 2. If clicking a destination node to move:
         if (currentUnitNode != null)
         {
             int moveCost = currentUnitNode.CalculateGraphMoveCost(this);
@@ -172,7 +171,6 @@ public class NodePlatform : MonoBehaviour
                 TurnManager.Instance.DeductEnergy(moveCost);
                 float autoRadius = GetTopSurfaceRadius();
 
-                // Subscribe once to handle quest interaction automatically upon arrival
                 Action arrivalHandler = null;
                 arrivalHandler = () =>
                 {
@@ -191,36 +189,45 @@ public class NodePlatform : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Checks for LocationQuestDeck offers and active Quest fulfillment upon reaching/clicking this node.
-    /// </summary>
     public void ProcessNodeInteractions(PathClickMovement unit)
     {
-        if (unit == null) return;
+        if (unit == null || nodeType == NodeType.Junction) return;
 
-        // Step A: Check for Quest Deck Draws
+        if (QuestManager.Instance != null)
+        {
+            QuestManager.Instance.CheckAndFulfillQuest(unit, this);
+        }
+
         LocationQuestDeck questDeck = GetComponent<LocationQuestDeck>();
         if (questDeck != null && QuestManager.Instance != null && QuestManager.Instance.CanDrawQuest(unit))
         {
             QuestData drawnQuest = questDeck.DrawQuest();
             if (drawnQuest != null)
             {
-                // Pass 'questDeck' so it can be returned if declined
                 QuestManager.Instance.PresentQuestOffer(unit, drawnQuest, questDeck);
-                return;
             }
-        }
-
-        // Step B: Check for Quest Fulfillment
-        if (QuestManager.Instance != null)
-        {
-            QuestManager.Instance.CheckAndFulfillQuest(unit, this);
         }
     }
 
-    /// <summary>
-    /// Gets all nodes reachable from startNode within the specified max energy limit.
-    /// </summary>
+    public List<NodePlatform> GetUnblockedNeighbors()
+    {
+        List<NodePlatform> validNeighbors = new List<NodePlatform>();
+
+        foreach (NodeConnection conn in connections)
+        {
+            if (conn != null && !conn.IsBlocked)
+            {
+                NodePlatform neighbor = conn.GetOtherNode(this);
+                if (neighbor != null && !validNeighbors.Contains(neighbor))
+                {
+                    validNeighbors.Add(neighbor);
+                }
+            }
+        }
+
+        return validNeighbors;
+    }
+
     public static HashSet<NodePlatform> GetReachableNodes(NodePlatform startNode, int maxEnergy)
     {
         HashSet<NodePlatform> reachable = new HashSet<NodePlatform>();
@@ -236,17 +243,21 @@ public class NodePlatform : MonoBehaviour
         {
             var (currentNode, currentCost) = queue.Dequeue();
 
-            foreach (NodePlatform neighbor in currentNode.Neighbors)
+            foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors())
             {
-                if (neighbor == null) continue;
-
                 int newCost = currentCost + neighbor.BaseMoveCost;
                 if (newCost <= maxEnergy)
                 {
                     if (!bestCost.ContainsKey(neighbor) || newCost < bestCost[neighbor])
                     {
                         bestCost[neighbor] = newCost;
-                        reachable.Add(neighbor);
+                        
+                        // Junctions are traversed through, but only Locations are added to reachable destinations
+                        if (neighbor.Type == NodeType.Location)
+                        {
+                            reachable.Add(neighbor);
+                        }
+                        
                         queue.Enqueue((neighbor, newCost));
                     }
                 }
@@ -256,9 +267,6 @@ public class NodePlatform : MonoBehaviour
         return reachable;
     }
 
-    /// <summary>
-    /// Calculates step distance using Breadth-First Search (BFS) along neighbor connections.
-    /// </summary>
     public int CalculateGraphMoveCost(NodePlatform targetNode)
     {
         if (targetNode == null || targetNode == this) return 0;
@@ -278,7 +286,7 @@ public class NodePlatform : MonoBehaviour
                 return currentDepth;
             }
 
-            foreach (NodePlatform neighbor in currentNode.Neighbors)
+            foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors())
             {
                 if (neighbor != null && !visited.Contains(neighbor))
                 {
@@ -288,23 +296,24 @@ public class NodePlatform : MonoBehaviour
             }
         }
 
-        return 1;
+        return 999;
     }
 
-    /// <summary>
-    /// Finds which NodePlatform a character is standing on based on collider overlap.
-    /// </summary>
     public static NodePlatform GetNodeAtPosition(Vector3 position)
     {
-        Collider[] hitColliders = Physics.OverlapSphere(position, 1.0f);
+        Collider[] hitColliders = Physics.OverlapSphere(position, 1.2f);
         foreach (var col in hitColliders)
         {
             NodePlatform node = col.GetComponent<NodePlatform>();
-            if (node != null)
-            {
-                return node;
-            }
+            if (node != null) return node;
         }
+
+        if (Physics.Raycast(position + Vector3.up * 2.0f, Vector3.down, out RaycastHit hit, 10.0f))
+        {
+            NodePlatform node = hit.collider.GetComponent<NodePlatform>();
+            if (node != null) return node;
+        }
+
         return null;
     }
 
@@ -322,11 +331,16 @@ public class NodePlatform : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.cyan;
-        foreach (NodePlatform neighbor in neighbors)
+        foreach (NodeConnection connection in connections)
         {
-            if (neighbor != null)
+            if (connection != null)
             {
-                Gizmos.DrawLine(transform.position + Vector3.up * 0.5f, neighbor.transform.position + Vector3.up * 0.5f);
+                NodePlatform target = connection.GetOtherNode(this);
+                if (target != null)
+                {
+                    Gizmos.color = connection.IsBlocked ? Color.red : Color.cyan;
+                    Gizmos.DrawLine(transform.position + Vector3.up * 0.5f, target.transform.position + Vector3.up * 0.5f);
+                }
             }
         }
     }

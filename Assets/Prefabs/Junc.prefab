@@ -13,9 +13,8 @@ GameObject:
   - component: {fileID: 1110809844161406090}
   - component: {fileID: 4879494871329830668}
   - component: {fileID: 4962721099008776110}
-  - component: {fileID: -3079825842745543403}
   m_Layer: 6
-  m_Name: Loc
+  m_Name: Junc
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -70,7 +69,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: bcd5a88bc4bd0be42aa7ed633cda1734, type: 2}
+  - {fileID: 2100000, guid: b690d45171824664dbaf438d57067557, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -129,30 +128,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: deaa80343f87d834d9e0a84244a2a2bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NodePlatform
-  neighbors:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  nodeType: 1
+  connections: []
   baseMoveCost: 1
-  defaultColor: {r: 0.7803922, g: 0.76470596, b: 0.3019608, a: 1}
+  defaultColor: {r: 0.854902, g: 0.4392157, b: 0.8392158, a: 1}
   hoverColor: {r: 0.5219849, g: 0.9150943, b: 0.20287468, a: 1}
   unreachableHoverColor: {r: 1, g: 0, b: 0, a: 1}
   glowOverlay: {fileID: 4115031698464103359}
   glowColor: {r: 0.2, g: 0.8, b: 1, a: 0.5}
   edgePadding: 0.2
---- !u!114 &-3079825842745543403
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2925152524347207684}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 942830f306c959549a26417abe108a28, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LocationQuestDeck
-  locationQuests: []
 --- !u!1 &4115031698464103359
 GameObject:
   m_ObjectHideFlags: 0

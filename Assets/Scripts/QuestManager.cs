@@ -203,14 +203,21 @@ public class QuestManager : MonoBehaviour
         }
         else if (currentQuest.goalType == QuestGoalType.VisitPlayer)
         {
-            Collider[] hits = Physics.OverlapSphere(currentLocation.transform.position, 1.0f);
-            foreach (var col in hits)
+            // Search all registered units in TurnManager instead of relying on physics colliders
+            if (TurnManager.Instance != null)
             {
-                PathClickMovement otherUnit = col.GetComponent<PathClickMovement>();
-                if (otherUnit != null && otherUnit != unit && otherUnit.gameObject.name == currentQuest.targetUnitName)
+                foreach (PathClickMovement playerUnit in TurnManager.Instance.AllUnits) // Ensure TurnManager exposes its unit list
                 {
-                    goalReached = true;
-                    break;
+                    if (playerUnit != null && playerUnit != unit && playerUnit.gameObject.name == currentQuest.targetUnitName)
+                    {
+                        // Check if the target player is standing on the same NodePlatform hex
+                        NodePlatform targetUnitNode = NodePlatform.GetNodeAtPosition(playerUnit.transform.position);
+                        if (targetUnitNode == currentLocation)
+                        {
+                            goalReached = true;
+                            break;
+                        }
+                    }
                 }
             }
         }

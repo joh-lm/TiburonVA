@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 923e2add3faf54d4cb14fdf4e97b1f1c, type: 3}
-  m_Name: QuestTest1
+  m_Name: GoToRogue
   m_EditorClassIdentifier: Assembly-CSharp::QuestData
-  questTitle: GoToLoc3
+  questTitle: Find the Rogue
   description: 
   energyCostToFulfill: 1
-  goalType: 0
-  targetLocationName: Loc3
-  targetUnitName: 
+  goalType: 1
+  targetLocationName: 
+  targetUnitName: Rogue_Hooded
   rewardMoney: 50
   rewardEnergy: 1
   rewardItemName: 
