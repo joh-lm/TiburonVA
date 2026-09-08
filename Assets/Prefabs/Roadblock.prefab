@@ -92,3 +92,8 @@ MonoBehaviour:
   targetConnection: {fileID: 0}
   targetJunction: {fileID: 0}
   energyToClear: 2
+  moneyToClear: 50
+  uiPrefab: {fileID: 2906421693470968522, guid: e67f8666e14466848a4896fff7561bff, type: 3}
+  uiHeightOffset: 5
+  affordableTint: {r: 0, g: 1, b: 0.2, a: 0.4}
+  unaffordableTint: {r: 1, g: 0, b: 0, a: 0.4}

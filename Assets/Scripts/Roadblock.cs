@@ -16,33 +16,45 @@ public class Roadblock : MonoBehaviour
     [SerializeField] private int energyToClear = 2;
     [SerializeField] private int moneyToClear = 50;
 
+    [Header("Hover UI & Visual Filter")]
+    [Tooltip("Prefab of the World Space UI Canvas displaying costs and routes.")]
+    [SerializeField] private RoadblockUI uiPrefab;
+
+    [Tooltip("Height offset for the hover UI above this roadblock model.")]
+    [SerializeField] private float uiHeightOffset = 1.5f;
+
+    [Header("Highlight Filter Tints")]
+    [SerializeField] private Color affordableTint = new Color(0f, 1f, 0.2f, 0.4f); // Green Filter
+    [SerializeField] private Color unaffordableTint = new Color(1f, 0f, 0f, 0.4f); // Red Filter
+
     private List<NodeConnection> blockedConnections = new List<NodeConnection>();
+    private RoadblockUI activeUIInstance;
+    private Renderer[] modelRenderers;
+    private MaterialPropertyBlock propertyBlock;
+
+    private void Awake()
+    {
+        modelRenderers = GetComponentsInChildren<Renderer>();
+        propertyBlock = new MaterialPropertyBlock();
+    }
 
     private void Start()
     {
-        // 1. Validate Target Junction (Must be NodeType.Junction)
         if (targetJunction != null)
         {
             if (targetJunction.Type == NodeType.Location)
             {
-                Debug.LogError($"[Roadblock] Cannot place roadblock on Location '{targetJunction.name}'! Roadblocks can only be placed on Junctions or Road Connections.");
+                Debug.LogError($"[Roadblock] Cannot place roadblock on Location '{targetJunction.name}'!");
                 Destroy(gameObject);
                 return;
             }
-
             blockedConnections.AddRange(targetJunction.Connections);
         }
-        // 2. Validate Target Single Connection
         else if (targetConnection != null)
         {
             blockedConnections.Add(targetConnection);
         }
-        else
-        {
-            Debug.LogWarning($"[Roadblock] '{gameObject.name}' has no assigned Connection or Junction target!");
-        }
 
-        // Apply blocked state across all targeted connections
         ApplyBlockState(true);
     }
 
@@ -57,6 +69,119 @@ public class Roadblock : MonoBehaviour
         }
     }
 
+    private void OnMouseEnter()
+    {
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+        if (TurnManager.Instance == null) return;
+
+        PathClickMovement activeUnit = TurnManager.Instance.CurrentUnit;
+        if (activeUnit == null) return;
+
+        NodePlatform currentUnitNode = NodePlatform.GetNodeAtPosition(activeUnit.transform.position);
+        if (currentUnitNode == null) return;
+
+        bool isConnected = IsPlayerConnectedToRoadblock(currentUnitNode);
+        bool hasEnergy = TurnManager.Instance.CanAfford(energyToClear);
+        int unitMoney = QuestManager.Instance != null ? QuestManager.Instance.GetMoney(activeUnit) : 0;
+        bool hasMoney = unitMoney >= moneyToClear;
+
+        bool canRemove = isConnected && hasEnergy && hasMoney;
+
+        // 1. Apply Color Filter Tint (Green if clearable, Red if not)
+        ApplyHighlightFilter(canRemove ? affordableTint : unaffordableTint);
+
+        // 2. Spawn and setup Hover UI
+        ShowHoverUI(canRemove);
+    }
+
+    private void OnMouseExit()
+    {
+        ClearHighlightFilter();
+        HideHoverUI();
+    }
+
+    private void ApplyHighlightFilter(Color tintColor)
+    {
+        foreach (Renderer rend in modelRenderers)
+        {
+            if (rend == null) continue;
+
+            rend.GetPropertyBlock(propertyBlock);
+
+            // Sets color properties for Built-in, URP, and custom shader pipelines
+            propertyBlock.SetColor("_Color", tintColor);
+            propertyBlock.SetColor("_BaseColor", tintColor);
+            
+            // Emissive properties for glow effects
+            propertyBlock.SetColor("_EmissionColor", tintColor * 0.8f);
+
+            rend.SetPropertyBlock(propertyBlock);
+
+            // Ensures emission is enabled on the material keywords
+            foreach (Material mat in rend.materials)
+            {
+                mat.EnableKeyword("_EMISSION");
+            }
+        }
+    }   
+
+    private void ClearHighlightFilter()
+    {
+        foreach (Renderer rend in modelRenderers)
+        {
+            if (rend == null) continue;
+            
+            rend.SetPropertyBlock(null);
+
+            // Reset emission keywords back to default
+            foreach (Material mat in rend.materials)
+            {
+                mat.DisableKeyword("_EMISSION");
+            }
+        }
+    }
+
+    private void ShowHoverUI(bool canAfford)
+    {
+        if (uiPrefab == null) return;
+
+        if (activeUIInstance == null)
+        {
+            Vector3 spawnPos = transform.position + Vector3.up * uiHeightOffset;
+            
+            // Instantiate without setting transform as parent to avoid inheriting parent scale shearing
+            activeUIInstance = Instantiate(uiPrefab, spawnPos, Quaternion.identity);
+        }
+
+        // Keep position attached to roadblock in case roadblock moves
+        activeUIInstance.transform.position = transform.position + Vector3.up * uiHeightOffset;
+
+        string routeDescription = FormatBlockedRoutes();
+        activeUIInstance.Setup(routeDescription, energyToClear, moneyToClear, canAfford);
+        activeUIInstance.gameObject.SetActive(true);
+    }
+
+    private void HideHoverUI()
+    {
+        if (activeUIInstance != null)
+        {
+            activeUIInstance.gameObject.SetActive(false);
+        }
+    }
+
+    private string FormatBlockedRoutes()
+    {
+        if (targetJunction != null)
+        {
+            return $"Junction: {targetJunction.name} (All Paths)";
+        }
+        else if (targetConnection != null && targetConnection.NodeA != null && targetConnection.NodeB != null)
+        {
+            return $"{targetConnection.NodeA.name} ↔ {targetConnection.NodeB.name}";
+        }
+        return "Unknown Route";
+    }
+
     private void OnMouseDown()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
@@ -68,7 +193,6 @@ public class Roadblock : MonoBehaviour
         NodePlatform currentUnitNode = NodePlatform.GetNodeAtPosition(activeUnit.transform.position);
         if (currentUnitNode == null) return;
 
-        // Check if player is directly adjacent or connected via unblocked Junctions
         if (IsPlayerConnectedToRoadblock(currentUnitNode))
         {
             TryClearRoadblock(activeUnit);
@@ -85,11 +209,9 @@ public class Roadblock : MonoBehaviour
         {
             if (connection == null) continue;
 
-            // Direct adjacency: Player is standing on NodeA or NodeB of this exact connection
             if (connection.NodeA == playerNode || connection.NodeB == playerNode)
                 return true;
 
-            // Traversal check: Search backwards from NodeA and NodeB using ONLY Junctions
             if (IsNodeConnectedToPlayerViaJunctions(connection.NodeA, playerNode) ||
                 IsNodeConnectedToPlayerViaJunctions(connection.NodeB, playerNode))
             {
@@ -104,7 +226,6 @@ public class Roadblock : MonoBehaviour
     {
         if (endpoint == null || targetPlayerNode == null) return false;
 
-        // Stop if the endpoint itself is a Location and not the player's current node
         if (endpoint.Type == NodeType.Location && endpoint != targetPlayerNode)
         {
             return false;
@@ -149,14 +270,11 @@ public class Roadblock : MonoBehaviour
     public void TryClearRoadblock(PathClickMovement unit)
     {
         bool hasEnoughEnergy = TurnManager.Instance != null && TurnManager.Instance.CanAfford(energyToClear);
-        
-        // Retrieve unit's current money balance from QuestManager
         int unitMoney = QuestManager.Instance != null ? QuestManager.Instance.GetMoney(unit) : 0;
         bool hasEnoughMoney = unitMoney >= moneyToClear;
 
         if (hasEnoughEnergy && hasEnoughMoney)
         {
-            // Deduct Energy & Money
             TurnManager.Instance.DeductEnergy(energyToClear);
             if (QuestManager.Instance != null && moneyToClear > 0)
             {
@@ -164,20 +282,18 @@ public class Roadblock : MonoBehaviour
             }
 
             ApplyBlockState(false);
+            HideHoverUI();
 
             Debug.Log($"<color=green>[Roadblock Removed]</color> Cleared roadblock for {energyToClear} Energy and ${moneyToClear}!");
             Destroy(gameObject);
         }
-        else
+    }
+
+    private void OnDestroy()
+    {
+        if (activeUIInstance != null)
         {
-            if (!hasEnoughEnergy)
-            {
-                Debug.Log($"[Roadblock] Not enough Energy! Requires {energyToClear} Energy.");
-            }
-            if (!hasEnoughMoney)
-            {
-                Debug.Log($"[Roadblock] Not enough Money! Requires ${moneyToClear} (You have ${unitMoney}).");
-            }
+            Destroy(activeUIInstance.gameObject);
         }
     }
 }
