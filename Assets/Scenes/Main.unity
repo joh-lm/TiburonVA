@@ -8597,6 +8597,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 572120328}
     m_Modifications:
+    - target: {fileID: -6098202547198465026, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
+      propertyPath: moneyToClear
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: -6098202547198465026, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
+      propertyPath: targetConnection
+      value: 
+      objectReference: {fileID: 922477500}
     - target: {fileID: 6228333576238626892, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
       propertyPath: m_LocalPosition.x
       value: 15.11
@@ -8644,10 +8652,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 6711679353654551286, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 467099609}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
 --- !u!1001 &332333898
 PrefabInstance:
@@ -11515,31 +11520,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 56.182, y: 21.55, z: 0}
---- !u!1 &467099607 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6711679353654551286, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
-  m_PrefabInstance: {fileID: 331566510}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &467099608 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6228333576238626892, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
   m_PrefabInstance: {fileID: 331566510}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &467099609
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 467099607}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 19444e2de91877e409b40ad9cc9e155c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Roadblock
-  targetConnection: {fileID: 922477500}
-  targetJunction: {fileID: 0}
-  energyToClear: 2
 --- !u!1001 &467697410
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -16238,12 +16223,12 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -3079825842745543403, guid: b52730881bcc60b4da2ae9ae9ab97c79, type: 3}
       propertyPath: locationQuests.Array.size
-      value: 3
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: -3079825842745543403, guid: b52730881bcc60b4da2ae9ae9ab97c79, type: 3}
       propertyPath: 'locationQuests.Array.data[0]'
       value: 
-      objectReference: {fileID: 11400000, guid: 2126ebc9df78ebf48a8b3fd73b1a57fd, type: 2}
+      objectReference: {fileID: 11400000, guid: 694428a89433778479144a5fd7657841, type: 2}
     - target: {fileID: -3079825842745543403, guid: b52730881bcc60b4da2ae9ae9ab97c79, type: 3}
       propertyPath: 'locationQuests.Array.data[1]'
       value: 
@@ -23911,31 +23896,11 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 14289ce66588ff940b0278ee4d3552b2, type: 3}
   m_PrefabInstance: {fileID: 952796067}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &953797611 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6711679353654551286, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
-  m_PrefabInstance: {fileID: 1745156817}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &953797612 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6228333576238626892, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
   m_PrefabInstance: {fileID: 1745156817}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &953797613
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 953797611}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 19444e2de91877e409b40ad9cc9e155c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Roadblock
-  targetConnection: {fileID: 1738256026}
-  targetJunction: {fileID: 0}
-  energyToClear: 2
 --- !u!4 &955081731 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 723564949a089e547a6a8c7d205c1daf, type: 3}
@@ -43686,6 +43651,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 572120328}
     m_Modifications:
+    - target: {fileID: -6098202547198465026, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
+      propertyPath: moneyToClear
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: -6098202547198465026, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
+      propertyPath: targetConnection
+      value: 
+      objectReference: {fileID: 1738256026}
     - target: {fileID: 6228333576238626892, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
       propertyPath: m_LocalPosition.x
       value: 8.62
@@ -43733,10 +43706,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 6711679353654551286, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 953797613}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b3bed1eaed731ef4b966bc2f3affd4c6, type: 3}
 --- !u!1001 &1747736070
 PrefabInstance:

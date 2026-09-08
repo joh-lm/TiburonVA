@@ -262,6 +262,23 @@ public class QuestManager : MonoBehaviour
         return playerMoney.ContainsKey(unit) ? playerMoney[unit] : 0;
     }
 
+    /// <summary>
+    /// Deducts a specified amount of money from the unit's balance.
+    /// </summary>
+    public void DeductMoney(PathClickMovement unit, int amount)
+    {
+        if (unit == null || amount <= 0) return;
+
+        if (playerMoney.ContainsKey(unit))
+        {
+            playerMoney[unit] = Mathf.Max(0, playerMoney[unit] - amount);
+            Debug.Log($"<color=yellow>[Economy]</color> Deducted ${amount} from {unit.name}. Remaining balance: ${playerMoney[unit]}");
+
+            // Optional: Trigger UI update for player balance if you have a UI manager
+            // UIManager.Instance?.UpdateMoneyUI(unit, playerMoney[unit]);
+        }
+}
+
     public void UpdateUI()
     {
         PathClickMovement currentUnit = TurnManager.Instance != null ? TurnManager.Instance.CurrentUnit : null;
