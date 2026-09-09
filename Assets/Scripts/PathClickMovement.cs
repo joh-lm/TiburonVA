@@ -5,22 +5,18 @@ using System;
 [RequireComponent(typeof(NavMeshAgent))]
 public class PathClickMovement : MonoBehaviour
 {
-    [Header("Visual Model Swapping")]
-    [Tooltip("The standard character mesh model GameObject.")]
+    [Header("Visual Models")]
     [SerializeField] private GameObject characterModel;
-
-    [Tooltip("The boat model GameObject (parented to unit or assigned prefab).")]
     [SerializeField] private GameObject boatModel;
 
     private NavMeshAgent agent;
     private Animator animator;
-    private PlayerInventory inventory;
 
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
     private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
 
     private bool wasMoving = false;
-    private bool isInWater = false;
+    private bool isInBoatMode = false;
 
     public event Action OnDestinationReached;
 
@@ -30,19 +26,46 @@ public class PathClickMovement : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
-        inventory = GetComponent<PlayerInventory>();
 
-        if (boatModel != null)
-        {
-            boatModel.SetActive(false);
-        }
+        if (boatModel != null) boatModel.SetActive(false);
+        if (characterModel != null) characterModel.SetActive(true);
     }
 
     private void Start()
     {
+        PlayerInventory inventory = GetComponent<PlayerInventory>();
         if (inventory != null)
         {
             UpdateWaterTraversalPermission(inventory.HasBoat);
+        }
+    }
+
+    public void MoveToLocation(Vector3 destination, float surfaceRadius)
+    {
+        agent.stoppingDistance = surfaceRadius;
+        agent.SetDestination(destination);
+        wasMoving = true;
+    }
+
+    /// <summary>
+    /// Enables or disables the Water area mask bit on the NavMeshAgent based on boat ownership.
+    /// </summary>
+    public void UpdateWaterTraversalPermission(bool canUseWater)
+    {
+        if (agent == null) return;
+
+        int waterAreaIndex = NavMesh.GetAreaFromName("Water");
+        if (waterAreaIndex < 0) return;
+
+        int waterMask = 1 << waterAreaIndex;
+
+        if (canUseWater)
+        {
+            agent.areaMask |= waterMask;  // Enable Water area traversal
+        }
+        else
+        {
+            agent.areaMask &= ~waterMask; // Disable Water area traversal
         }
     }
 
@@ -50,8 +73,8 @@ public class PathClickMovement : MonoBehaviour
     {
         if (agent == null) return;
 
-        // 1. Monitor NavMesh Area under feet to trigger Boat visual model swap
-        CheckWaterSurfaceStatus();
+        // 1. Model Swap based on NavMeshLink status
+        HandleLinkModelSwap();
 
         // 2. Drive Animator parameters
         if (animator != null && characterModel != null && characterModel.activeSelf)
@@ -71,56 +94,47 @@ public class PathClickMovement : MonoBehaviour
         }
     }
 
-    public void MoveToLocation(Vector3 destination, float surfaceRadius)
-    {
-        agent.stoppingDistance = surfaceRadius;
-        agent.SetDestination(destination);
-        wasMoving = true;
-    }
-
-    /// <summary>
-    /// Enables or disables the Water area mask on the NavMeshAgent based on boat ownership.
-    /// </summary>
-    public void UpdateWaterTraversalPermission(bool canUseWater)
+    private void HandleLinkModelSwap()
     {
         if (agent == null) return;
 
-        int waterAreaIndex = NavMesh.GetAreaFromName("Water");
-        if (waterAreaIndex < 0) return;
+        // 1. Check if the agent is actively crossing a NavMeshLink
+        bool onLink = agent.isOnOffMeshLink;
 
-        int waterMask = 1 << waterAreaIndex;
+        // 2. Check if the agent is standing directly on a "Water" NavMesh surface
+        bool onWaterArea = IsStandingOnWaterArea();
 
-        if (canUseWater)
+        // Unit should be in boat mode if either condition is true
+        bool shouldBeInBoat = onLink || onWaterArea;
+
+        if (shouldBeInBoat != isInBoatMode)
         {
-            agent.areaMask |= waterMask; // Enable Water area
-        }
-        else
-        {
-            agent.areaMask &= ~waterMask; // Disable Water area
+            isInBoatMode = shouldBeInBoat;
+            SetModelVisualState(isInBoatMode);
         }
     }
 
-    private void CheckWaterSurfaceStatus()
+    private bool IsStandingOnWaterArea()
     {
-        if (!agent.isOnNavMesh) return;
+        if (!agent.isOnNavMesh) return false;
 
-        NavMeshHit hit;
-        if (agent.SamplePathPosition(NavMesh.AllAreas, 0.5f, out hit))
+        // Sample the NavMesh area directly beneath the agent
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 0.8f, NavMesh.AllAreas))
         {
             int waterAreaIndex = NavMesh.GetAreaFromName("Water");
-            bool currentlyOnWater = (hit.mask & (1 << waterAreaIndex)) != 0;
-
-            if (currentlyOnWater != isInWater)
+            if (waterAreaIndex >= 0)
             {
-                isInWater = currentlyOnWater;
-                SetModelVisualState(isInWater);
+                int waterMask = 1 << waterAreaIndex;
+                return (hit.mask & waterMask) != 0;
             }
         }
-    }
 
-    private void SetModelVisualState(bool onWater)
+        return false;
+    }
+    
+    private void SetModelVisualState(bool useBoat)
     {
-        if (characterModel != null) characterModel.SetActive(!onWater);
-        if (boatModel != null) boatModel.SetActive(onWater);
+        if (characterModel != null) characterModel.SetActive(!useBoat);
+        if (boatModel != null) boatModel.SetActive(useBoat);
     }
 }

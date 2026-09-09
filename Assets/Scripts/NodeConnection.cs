@@ -9,7 +9,6 @@ public class NodeConnection : MonoBehaviour
     [Tooltip("Second platform or junction node connected by this road segment.")]
     [SerializeField] private NodePlatform nodeB;
 
-
     [Header("Connection Properties")]
     [SerializeField] private bool isWaterRoute = false;
     public bool IsWaterRoute => isWaterRoute;

@@ -112,7 +112,7 @@ public class NodePlatform : MonoBehaviour
     private void OnMouseEnter()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
-        if (nodeType == NodeType.Junction) return; // Junctions cannot be targeted for stopping
+        if (nodeType == NodeType.Junction) return;
 
         PathClickMovement activeUnit = TurnManager.Instance != null ? TurnManager.Instance.CurrentUnit : null;
         if (activeUnit == null) return;
@@ -120,7 +120,7 @@ public class NodePlatform : MonoBehaviour
         NodePlatform currentUnitNode = GetNodeAtPosition(activeUnit.transform.position);
         if (currentUnitNode != null)
         {
-            int cost = currentUnitNode.CalculateGraphMoveCost(this);
+            int cost = currentUnitNode.CalculateGraphMoveCost(this, activeUnit);
             bool canAfford = TurnManager.Instance.CanAfford(cost);
 
             if (platformRenderer != null)
@@ -148,7 +148,7 @@ public class NodePlatform : MonoBehaviour
     private void OnMouseDown()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
-        if (nodeType == NodeType.Junction) return; // Ignore direct destination clicks on Junctions
+        if (nodeType == NodeType.Junction) return;
         if (TurnManager.Instance == null || TurnManager.Instance.IsUnitBusy()) return;
 
         PathClickMovement activeCharacter = TurnManager.Instance.CurrentUnit;
@@ -164,7 +164,7 @@ public class NodePlatform : MonoBehaviour
 
         if (currentUnitNode != null)
         {
-            int moveCost = currentUnitNode.CalculateGraphMoveCost(this);
+            int moveCost = currentUnitNode.CalculateGraphMoveCost(this, activeCharacter);
 
             if (TurnManager.Instance.CanAfford(moveCost))
             {
@@ -210,7 +210,7 @@ public class NodePlatform : MonoBehaviour
     }
 
     public List<NodePlatform> GetUnblockedNeighbors(PathClickMovement unit = null)
-{
+    {
         List<NodePlatform> validNeighbors = new List<NodePlatform>();
 
         // Check if unit has a boat
@@ -235,7 +235,7 @@ public class NodePlatform : MonoBehaviour
         return validNeighbors;
     }
 
-    public static HashSet<NodePlatform> GetReachableNodes(NodePlatform startNode, int maxEnergy)
+    public static HashSet<NodePlatform> GetReachableNodes(NodePlatform startNode, int maxEnergy, PathClickMovement unit = null)
     {
         HashSet<NodePlatform> reachable = new HashSet<NodePlatform>();
         if (startNode == null || maxEnergy <= 0) return reachable;
@@ -250,7 +250,7 @@ public class NodePlatform : MonoBehaviour
         {
             var (currentNode, currentCost) = queue.Dequeue();
 
-            foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors())
+            foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors(unit))
             {
                 int newCost = currentCost + neighbor.BaseMoveCost;
                 if (newCost <= maxEnergy)
@@ -274,7 +274,7 @@ public class NodePlatform : MonoBehaviour
         return reachable;
     }
 
-    public int CalculateGraphMoveCost(NodePlatform targetNode)
+    public int CalculateGraphMoveCost(NodePlatform targetNode, PathClickMovement unit = null)
     {
         if (targetNode == null || targetNode == this) return 0;
 
@@ -293,7 +293,7 @@ public class NodePlatform : MonoBehaviour
                 return currentDepth;
             }
 
-            foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors())
+            foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors(unit))
             {
                 if (neighbor != null && !visited.Contains(neighbor))
                 {
