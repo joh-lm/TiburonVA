@@ -130,7 +130,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NodePlatform
   nodeType: 1
   connections: []
-  baseMoveCost: 1
+  baseMoveCost: 0
   defaultColor: {r: 0.854902, g: 0.4392157, b: 0.8392158, a: 1}
   hoverColor: {r: 0.5219849, g: 0.9150943, b: 0.20287468, a: 1}
   unreachableHoverColor: {r: 1, g: 0, b: 0, a: 1}

@@ -10,6 +10,7 @@ public class QuestManager : MonoBehaviour
     [Header("Win Condition")]
     [SerializeField] private int winMoneyAmount = 200;
 
+
     [Header("UI References")]
     [SerializeField] private TextMeshProUGUI activeQuestText;
     [SerializeField] private TextMeshProUGUI queuedQuestText;
@@ -67,7 +68,7 @@ public class QuestManager : MonoBehaviour
             playerMoney[currentUnit] = 0;
         }
 
-        // Check if a queued quest can now be activated with new energy
+        // Check if a queued quest can now be activated with new turn energy
         TryAutoPromoteQueuedQuest(currentUnit);
 
         UpdateUI();
@@ -121,7 +122,7 @@ public class QuestManager : MonoBehaviour
         }
         else
         {
-        Debug.LogWarning("[QuestManager] Could not return quest to deck because pendingSourceDeck or pendingQuest is null.");
+            Debug.LogWarning("[QuestManager] Could not return quest to deck because pendingSourceDeck or pendingQuest is null.");
         }
         CloseQuestPrompt();
     }
@@ -185,7 +186,7 @@ public class QuestManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Fulfills objective upon reaching target without secondary energy checks.
+    /// Fulfills objective upon reaching target location or player unit.
     /// </summary>
     public void CheckAndFulfillQuest(PathClickMovement unit, NodePlatform currentLocation)
     {
@@ -196,21 +197,20 @@ public class QuestManager : MonoBehaviour
 
         if (currentQuest.goalType == QuestGoalType.VisitLocation)
         {
-            if (currentLocation != null && currentLocation.gameObject.name == currentQuest.targetLocationName)
+            if (currentLocation != null)
             {
-                goalReached = true;
+                goalReached = string.Equals(currentLocation.name, currentQuest.targetLocationName, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(currentLocation.gameObject.name, currentQuest.targetLocationName, StringComparison.OrdinalIgnoreCase);
             }
         }
         else if (currentQuest.goalType == QuestGoalType.VisitPlayer)
         {
-            // Search all registered units in TurnManager instead of relying on physics colliders
             if (TurnManager.Instance != null)
             {
-                foreach (PathClickMovement playerUnit in TurnManager.Instance.AllUnits) // Ensure TurnManager exposes its unit list
+                foreach (PathClickMovement playerUnit in TurnManager.Instance.AllUnits)
                 {
-                    if (playerUnit != null && playerUnit != unit && playerUnit.gameObject.name == currentQuest.targetUnitName)
+                    if (playerUnit != null && playerUnit != unit && string.Equals(playerUnit.gameObject.name, currentQuest.targetUnitName, StringComparison.OrdinalIgnoreCase))
                     {
-                        // Check if the target player is standing on the same NodePlatform hex
                         NodePlatform targetUnitNode = NodePlatform.GetNodeAtPosition(playerUnit.transform.position);
                         if (targetUnitNode == currentLocation)
                         {
@@ -229,7 +229,7 @@ public class QuestManager : MonoBehaviour
 
             if (currentQuest.rewardEnergy > 0)
             {
-                TurnManager.Instance.DeductEnergy(-currentQuest.rewardEnergy);
+                TurnManager.Instance.AddEnergy(currentQuest.rewardEnergy);
             }
 
             Debug.Log($"[Quest Completed] {currentQuest.questTitle}! Granted ${currentQuest.rewardMoney}.");
@@ -273,11 +273,9 @@ public class QuestManager : MonoBehaviour
         {
             playerMoney[unit] = Mathf.Max(0, playerMoney[unit] - amount);
             Debug.Log($"<color=yellow>[Economy]</color> Deducted ${amount} from {unit.name}. Remaining balance: ${playerMoney[unit]}");
-
-            // Optional: Trigger UI update for player balance if you have a UI manager
-            // UIManager.Instance?.UpdateMoneyUI(unit, playerMoney[unit]);
+            UpdateUI();
         }
-}
+    }
 
     public void UpdateUI()
     {

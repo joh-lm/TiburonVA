@@ -290,10 +290,10 @@ public class Roadblock : MonoBehaviour
     }
 
     private void OnDestroy()
+{
+    if (activeUIInstance != null)
     {
-        if (activeUIInstance != null)
-        {
-            Destroy(activeUIInstance.gameObject);
-        }
+        Destroy(activeUIInstance.gameObject);
     }
+}
 }

@@ -121,6 +121,12 @@ public class TurnManager : MonoBehaviour
         }
     }
 
+    public void AddEnergy(int amount)
+    {
+        playerEnergyPoints[currentUnitIndex] += amount;
+        UpdateTurnUI();
+    }
+
     public void UpdateReachableHighlights()
     {
         ClearReachableHighlights();

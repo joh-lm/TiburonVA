@@ -209,14 +209,21 @@ public class NodePlatform : MonoBehaviour
         }
     }
 
-    public List<NodePlatform> GetUnblockedNeighbors()
-    {
+    public List<NodePlatform> GetUnblockedNeighbors(PathClickMovement unit = null)
+{
         List<NodePlatform> validNeighbors = new List<NodePlatform>();
+
+        // Check if unit has a boat
+        PlayerInventory inv = unit != null ? unit.GetComponent<PlayerInventory>() : null;
+        bool unitHasBoat = inv != null && inv.HasBoat;
 
         foreach (NodeConnection conn in connections)
         {
             if (conn != null && !conn.IsBlocked)
             {
+                // Block water connections if unit does NOT have a boat
+                if (conn.IsWaterRoute && !unitHasBoat) continue;
+
                 NodePlatform neighbor = conn.GetOtherNode(this);
                 if (neighbor != null && !validNeighbors.Contains(neighbor))
                 {
