@@ -76,13 +76,14 @@ public class Roadblock : MonoBehaviour
 
         PathClickMovement activeUnit = TurnManager.Instance.CurrentUnit;
         if (activeUnit == null) return;
+        PlayerInventory unitInventory = activeUnit.GetComponent<PlayerInventory>();
 
         NodePlatform currentUnitNode = NodePlatform.GetNodeAtPosition(activeUnit.transform.position);
         if (currentUnitNode == null) return;
 
         bool isConnected = IsPlayerConnectedToRoadblock(currentUnitNode);
         bool hasEnergy = TurnManager.Instance.CanAfford(energyToClear);
-        int unitMoney = QuestManager.Instance != null ? QuestManager.Instance.GetMoney(activeUnit) : 0;
+        int unitMoney = unitInventory.CurrentMoney;
         bool hasMoney = unitMoney >= moneyToClear;
 
         bool canRemove = isConnected && hasEnergy && hasMoney;
@@ -269,16 +270,18 @@ public class Roadblock : MonoBehaviour
 
     public void TryClearRoadblock(PathClickMovement unit)
     {
+        PlayerInventory inventory = unit.GetComponent<PlayerInventory>();
+
         bool hasEnoughEnergy = TurnManager.Instance != null && TurnManager.Instance.CanAfford(energyToClear);
-        int unitMoney = QuestManager.Instance != null ? QuestManager.Instance.GetMoney(unit) : 0;
+        int unitMoney = inventory.CurrentMoney;
         bool hasEnoughMoney = unitMoney >= moneyToClear;
 
         if (hasEnoughEnergy && hasEnoughMoney)
         {
-            TurnManager.Instance.DeductEnergy(energyToClear);
-            if (QuestManager.Instance != null && moneyToClear > 0)
+            inventory.TryDeductEnergy(energyToClear);
+            if (moneyToClear > 0)
             {
-                QuestManager.Instance.DeductMoney(unit, moneyToClear);
+                inventory.TryDeductMoney(moneyToClear);
             }
 
             ApplyBlockState(false);
@@ -290,10 +293,10 @@ public class Roadblock : MonoBehaviour
     }
 
     private void OnDestroy()
-{
-    if (activeUIInstance != null)
     {
-        Destroy(activeUIInstance.gameObject);
+        if (activeUIInstance != null)
+        {
+            Destroy(activeUIInstance.gameObject);
+        }
     }
-}
 }

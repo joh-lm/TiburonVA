@@ -10,25 +10,45 @@ public class TurnManager : MonoBehaviour
     [Header("Registered Units")]
     [SerializeField] private List<PathClickMovement> units = new List<PathClickMovement>();
 
-    [Header("Energy Rules")]
-    [SerializeField] private int startingEnergy = 0;
+    [Header("Turn Rules")]
     [SerializeField] private int energyGainPerTurn = 1;
 
     [Header("UI References")]
+    [SerializeField] private TextMeshProUGUI moneyDisplayText;
     [SerializeField] private TextMeshProUGUI turnDisplayText;
     [SerializeField] private TextMeshProUGUI hoverCostText;
     [SerializeField] private TextMeshProUGUI energyDisplayText;
 
-    private List<int> playerEnergyPoints = new List<int>();
+    [Header("Win Conditions")]
+    [SerializeField] private int winMoneyAmount = 100;
+
     private int currentUnitIndex = 0;
     private NodePlatform[] allNodes;
     private bool wasMoving = false;
-
-    public event Action<PathClickMovement> OnTurnStarted;
     public PathClickMovement CurrentUnit => units.Count > 0 ? units[currentUnitIndex] : null;
-    public int CurrentEnergy => playerEnergyPoints.Count > currentUnitIndex ? playerEnergyPoints[currentUnitIndex] : 0;
-
     public List<PathClickMovement> AllUnits => units;
+    
+    public event Action<PathClickMovement> OnTurnStarted;
+    public event Action<PathClickMovement> OnPlayerWon;
+
+    public int CurrentEnergy
+    {
+        get
+        {
+            if (CurrentUnit == null) return 0;
+            PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
+            return inventory != null ? inventory.CurrentEnergy : 0;
+        }
+    }
+    public int CurrentMoney
+    {
+        get
+        {
+            if (CurrentUnit == null) return 0;
+            PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
+            return inventory != null ? inventory.CurrentMoney : 0;
+        }
+    }
 
     private void Awake()
     {
@@ -64,12 +84,6 @@ public class TurnManager : MonoBehaviour
             units.AddRange(FindObjectsOfType<PathClickMovement>());
         }
 
-        playerEnergyPoints.Clear();
-        for (int i = 0; i < units.Count; i++)
-        {
-            playerEnergyPoints.Add(startingEnergy);
-        }
-
         if (units.Count > 0)
         {
             StartTurn(0);
@@ -80,8 +94,15 @@ public class TurnManager : MonoBehaviour
     {
         currentUnitIndex = index % units.Count;
         
-        // Grant +1 Energy at start of turn
-        playerEnergyPoints[currentUnitIndex] += energyGainPerTurn;
+        // Grant turn energy directly to the unit's inventory component
+        if (CurrentUnit != null)
+        {
+            PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
+            if (inventory != null)
+            {
+                inventory.AddEnergy(energyGainPerTurn);
+            }
+        }
 
         UpdateTurnUI();
         UpdateReachableHighlights();
@@ -107,24 +128,9 @@ public class TurnManager : MonoBehaviour
 
     public bool CanAfford(int cost)
     {
-        return CurrentEnergy >= cost;
-    }
-
-    public void DeductEnergy(int cost)
-    {
-        if (CanAfford(cost))
-        {
-            playerEnergyPoints[currentUnitIndex] -= cost;
-            wasMoving = true;
-            UpdateTurnUI();
-            ClearReachableHighlights(); // Clear highlights while moving
-        }
-    }
-
-    public void AddEnergy(int amount)
-    {
-        playerEnergyPoints[currentUnitIndex] += amount;
-        UpdateTurnUI();
+        if (CurrentUnit == null) return false;
+        PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
+        return inventory != null && inventory.CanAfford(cost);
     }
 
     public void UpdateReachableHighlights()
@@ -155,7 +161,7 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    private void UpdateTurnUI()
+    public void UpdateTurnUI()
     {
         if (turnDisplayText != null && CurrentUnit != null)
         {
@@ -165,6 +171,11 @@ public class TurnManager : MonoBehaviour
         if (energyDisplayText != null)
         {
             energyDisplayText.text = $"Energy: <b>{CurrentEnergy}</b>";
+        }
+
+        if (moneyDisplayText != null)
+        {
+            moneyDisplayText.text = $"Money: <b>${CurrentMoney} / ${winMoneyAmount}</b>";
         }
     }
 
@@ -186,37 +197,17 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    public void RegisterUnit(PathClickMovement unit)
+    public void CheckWinCondition(PathClickMovement unit)
     {
-        if (!units.Contains(unit))
+        if (unit == null) return;
+
+        PlayerInventory inventory = unit.GetComponent<PlayerInventory>();
+        if (inventory != null && inventory.CurrentMoney >= winMoneyAmount)
         {
-            units.Add(unit);
-            playerEnergyPoints.Add(startingEnergy);
+            Debug.Log($"{unit.gameObject.name} has reached ${winMoneyAmount} and won the game!");
+            OnPlayerWon?.Invoke(unit);
+            // Trigger Victory UI or pause game loop
         }
     }
 
-    public void HighlightReachableNodes()
-    {
-        if (CurrentUnit == null) return;
-
-        NodePlatform currentNode = NodePlatform.GetNodeAtPosition(CurrentUnit.transform.position);
-        if (currentNode != null)
-        {
-            // 1. Reset all node visual highlights across the scene
-            NodePlatform[] allNodes = FindObjectsByType<NodePlatform>(FindObjectsSortMode.None);
-            foreach (var node in allNodes)
-            {
-                node.ResetVisuals();
-            }
-
-            // 2. Recalculate reachable nodes using current unit energy
-            HashSet<NodePlatform> reachableNodes = NodePlatform.GetReachableNodes(currentNode, CurrentEnergy);
-
-            // 3. Enable glow overlay on valid nodes
-            foreach (var node in reachableNodes)
-            {
-                node.SetReachableState(true);
-            }
-        }
-    }
 }

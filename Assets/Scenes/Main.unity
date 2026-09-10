@@ -16928,7 +16928,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -3079825842745543403, guid: b52730881bcc60b4da2ae9ae9ab97c79, type: 3}
       propertyPath: locationQuests.Array.size
-      value: 2
+      value: 4
       objectReference: {fileID: 0}
     - target: {fileID: -3079825842745543403, guid: b52730881bcc60b4da2ae9ae9ab97c79, type: 3}
       propertyPath: 'locationQuests.Array.data[0]'
@@ -16941,7 +16941,11 @@ PrefabInstance:
     - target: {fileID: -3079825842745543403, guid: b52730881bcc60b4da2ae9ae9ab97c79, type: 3}
       propertyPath: 'locationQuests.Array.data[2]'
       value: 
-      objectReference: {fileID: 11400000, guid: 2126ebc9df78ebf48a8b3fd73b1a57fd, type: 2}
+      objectReference: {fileID: 11400000, guid: 694428a89433778479144a5fd7657841, type: 2}
+    - target: {fileID: -3079825842745543403, guid: b52730881bcc60b4da2ae9ae9ab97c79, type: 3}
+      propertyPath: 'locationQuests.Array.data[3]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 694428a89433778479144a5fd7657841, type: 2}
     - target: {fileID: 1263984249203579503, guid: b52730881bcc60b4da2ae9ae9ab97c79, type: 3}
       propertyPath: m_LocalPosition.x
       value: 18.08159
@@ -20841,11 +20845,12 @@ MonoBehaviour:
   units:
   - {fileID: 1111020395}
   - {fileID: 1791309746}
-  startingEnergy: 0
   energyGainPerTurn: 1
+  moneyDisplayText: {fileID: 1114712358}
   turnDisplayText: {fileID: 700858636}
   hoverCostText: {fileID: 310274801}
   energyDisplayText: {fileID: 1583517249}
+  winMoneyAmount: 100
 --- !u!4 &799097594
 Transform:
   m_ObjectHideFlags: 0
@@ -27020,10 +27025,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44f9b7319c5cd394388bff866b075ac1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestManager
-  winMoneyAmount: 200
   activeQuestText: {fileID: 1622186025}
   queuedQuestText: {fileID: 269125509}
-  moneyDisplayText: {fileID: 1114712358}
   questCompletedPanel: {fileID: 1584722713}
   completedTitleText: {fileID: 198864086}
   completedDescriptionText: {fileID: 85183566}
@@ -44578,6 +44581,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInventory
   hasBoat: 0
+  completedQuestCount: 0
+  currentEnergy: 0
+  maxEnergy: 10
+  currentMoney: 0
 --- !u!1001 &1685940936
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -46784,6 +46791,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerInventory
   hasBoat: 1
+  completedQuestCount: 0
+  currentEnergy: 0
+  maxEnergy: 10
+  currentMoney: 0
 --- !u!1001 &1792347233
 PrefabInstance:
   m_ObjectHideFlags: 0

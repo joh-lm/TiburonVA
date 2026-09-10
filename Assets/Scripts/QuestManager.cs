@@ -8,14 +8,9 @@ public class QuestManager : MonoBehaviour
 {
     public static QuestManager Instance { get; private set; }
 
-    [Header("Win Condition")]
-    [SerializeField] private int winMoneyAmount = 200;
-
-
     [Header("UI References")]
     [SerializeField] private TextMeshProUGUI activeQuestText;
     [SerializeField] private TextMeshProUGUI queuedQuestText;
-    [SerializeField] private TextMeshProUGUI moneyDisplayText;
 
     [Header("Quest Completed UI Panel References")]
     [SerializeField] private GameObject questCompletedPanel;
@@ -30,7 +25,6 @@ public class QuestManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI promptDescriptionText;
     [SerializeField] private TextMeshProUGUI promptRewardText;
 
-    private Dictionary<PathClickMovement, int> playerMoney = new Dictionary<PathClickMovement, int>();
     private Dictionary<PathClickMovement, QuestData> activeQuests = new Dictionary<PathClickMovement, QuestData>();
     private Dictionary<PathClickMovement, QuestData> queuedQuests = new Dictionary<PathClickMovement, QuestData>();
 
@@ -38,8 +32,6 @@ public class QuestManager : MonoBehaviour
     private PathClickMovement pendingUnit;
     private LocationQuestDeck pendingSourceDeck;
 
-    public event Action<PathClickMovement, int> OnMoneyChanged;
-    public event Action<PathClickMovement> OnGameWon;
     private Action onDismissCallback;
 
     private void Awake()
@@ -69,7 +61,7 @@ public class QuestManager : MonoBehaviour
             TurnManager.Instance.OnTurnStarted += HandleTurnStarted;
         }
         if (questPromptPanel != null) questPromptPanel.SetActive(false);
-        UpdateUI();
+        // UpdateUI();
     }
 
     private void OnDestroy()
@@ -82,15 +74,10 @@ public class QuestManager : MonoBehaviour
 
     private void HandleTurnStarted(PathClickMovement currentUnit)
     {
-        if (!playerMoney.ContainsKey(currentUnit))
-        {
-            playerMoney[currentUnit] = 0;
-        }
-
         // Check if a queued quest can now be activated with new turn energy
         TryAutoPromoteQueuedQuest(currentUnit);
 
-        UpdateUI();
+        UpdateUI(currentUnit);
     }
 
     public bool HasFulfilledQuest(PathClickMovement unit, NodePlatform currentLocation)
@@ -129,11 +116,36 @@ public class QuestManager : MonoBehaviour
         return goalReached;
     }
 
+    public void awardQuestRewards(PathClickMovement unit, QuestData completedQuest)
+    {
+        PlayerInventory inventory = unit.GetComponent<PlayerInventory>();
+        
+        // Increment completed quest count on unit inventory
+        inventory.IncrementCompletedQuests();
+        // Give rewards
+        inventory.AddMoney(completedQuest.rewardMoney);
+        inventory.AddEnergy(completedQuest.rewardEnergy);
+
+        // Check if this reward pushed the player past the win threshold
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.CheckWinCondition(unit);
+        }
+
+        Debug.Log($"[Quest Completed] {completedQuest.questTitle}! Granted ${completedQuest.rewardMoney} and {completedQuest.rewardEnergy} Energy.");
+
+        // Immediately check if a queued quest can activate
+        TryAutoPromoteQueuedQuest(unit);
+        UpdateUI(unit);
+    }
+
     public void PresentQuestCompletedUI(PathClickMovement unit, NodePlatform location, Action onDismissed)
     {
         if (unit == null || !activeQuests.ContainsKey(unit)) return;
 
         QuestData completedQuest = activeQuests[unit];
+        // Give Completed Quest rewards
+        awardQuestRewards(unit, completedQuest);
 
         // 1. Populate Title and Description
         if (completedTitleText != null) 
@@ -283,10 +295,12 @@ public class QuestManager : MonoBehaviour
         bool canAffordEnergy = TurnManager.Instance.CanAfford(quest.energyCostToFulfill);
         bool hasActive = activeQuests.ContainsKey(unit) && activeQuests[unit] != null;
 
+        PlayerInventory inventory = unit.GetComponent<PlayerInventory>();
+
         // Condition A: If no active quest AND unit has energy to ACTIVATE -> Deduct energy and make ACTIVE
         if (!hasActive && canAffordEnergy)
         {
-            TurnManager.Instance.DeductEnergy(quest.energyCostToFulfill);
+            inventory.TryDeductEnergy(quest.energyCostToFulfill);
             activeQuests[unit] = quest;
             Debug.Log($"[Quest Activated] {quest.questTitle} (Deducted {quest.energyCostToFulfill} Energy)");
         }
@@ -297,7 +311,7 @@ public class QuestManager : MonoBehaviour
             Debug.Log($"[Quest Queued] {quest.questTitle} (Waiting for energy or open slot)");
         }
 
-        UpdateUI();
+        UpdateUI(unit);
     }
 
     /// <summary>
@@ -308,14 +322,15 @@ public class QuestManager : MonoBehaviour
         bool hasActive = activeQuests.ContainsKey(unit) && activeQuests[unit] != null;
         bool hasQueued = queuedQuests.ContainsKey(unit) && queuedQuests[unit] != null;
 
+        PlayerInventory inventory = unit.GetComponent<PlayerInventory>();
+
         if (!hasActive && hasQueued)
         {
             QuestData queued = queuedQuests[unit];
             
             // Check if player can afford to activate it now
-            if (TurnManager.Instance.CanAfford(queued.energyCostToFulfill))
+            if (inventory.TryDeductEnergy(queued.energyCostToFulfill))
             {
-                TurnManager.Instance.DeductEnergy(queued.energyCostToFulfill);
                 activeQuests[unit] = queued;
                 queuedQuests[unit] = null;
                 Debug.Log($"[Quest Auto-Activated] {queued.questTitle} promoted from queue! (Deducted {queued.energyCostToFulfill} Energy)");
@@ -323,106 +338,10 @@ public class QuestManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Fulfills objective upon reaching target location or player unit.
-    /// </summary>
-    public void CheckAndFulfillQuest(PathClickMovement unit, NodePlatform currentLocation)
+    public void UpdateUI(PathClickMovement currentUnit)
     {
-        if (!activeQuests.ContainsKey(unit) || activeQuests[unit] == null) return;
-
-        QuestData currentQuest = activeQuests[unit];
-        bool goalReached = false;
-
-        if (currentQuest.goalType == QuestGoalType.VisitLocation)
-        {
-            if (currentLocation != null)
-            {
-                goalReached = string.Equals(currentLocation.name, currentQuest.targetLocationName, StringComparison.OrdinalIgnoreCase) ||
-                              string.Equals(currentLocation.gameObject.name, currentQuest.targetLocationName, StringComparison.OrdinalIgnoreCase);
-            }
-        }
-        else if (currentQuest.goalType == QuestGoalType.VisitPlayer)
-        {
-            if (TurnManager.Instance != null)
-            {
-                foreach (PathClickMovement playerUnit in TurnManager.Instance.AllUnits)
-                {
-                    if (playerUnit != null && playerUnit != unit && string.Equals(playerUnit.gameObject.name, currentQuest.targetUnitName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        NodePlatform targetUnitNode = NodePlatform.GetNodeAtPosition(playerUnit.transform.position);
-                        if (targetUnitNode == currentLocation)
-                        {
-                            goalReached = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (goalReached)
-        {
-            // Award rewards
-            AddMoney(unit, currentQuest.rewardMoney);
-
-            if (currentQuest.rewardEnergy > 0)
-            {
-                TurnManager.Instance.AddEnergy(currentQuest.rewardEnergy);
-            }
-
-            Debug.Log($"[Quest Completed] {currentQuest.questTitle}! Granted ${currentQuest.rewardMoney}.");
-
-            activeQuests[unit] = null;
-
-            // Immediately check if a queued quest can activate
-            TryAutoPromoteQueuedQuest(unit);
-            UpdateUI();
-        }
-    }
-
-    public void AddMoney(PathClickMovement unit, int amount)
-    {
-        if (!playerMoney.ContainsKey(unit)) playerMoney[unit] = 0;
+        TurnManager.Instance.UpdateTurnUI();
         
-        playerMoney[unit] += amount;
-        OnMoneyChanged?.Invoke(unit, playerMoney[unit]);
-        UpdateUI();
-
-        if (playerMoney[unit] >= winMoneyAmount)
-        {
-            Debug.Log($"<color=gold>PLAYER WIN!</color> {unit.gameObject.name} reached ${playerMoney[unit]}!");
-            OnGameWon?.Invoke(unit);
-        }
-    }
-
-    public int GetMoney(PathClickMovement unit)
-    {
-        return playerMoney.ContainsKey(unit) ? playerMoney[unit] : 0;
-    }
-
-    /// <summary>
-    /// Deducts a specified amount of money from the unit's balance.
-    /// </summary>
-    public void DeductMoney(PathClickMovement unit, int amount)
-    {
-        if (unit == null || amount <= 0) return;
-
-        if (playerMoney.ContainsKey(unit))
-        {
-            playerMoney[unit] = Mathf.Max(0, playerMoney[unit] - amount);
-            Debug.Log($"<color=yellow>[Economy]</color> Deducted ${amount} from {unit.name}. Remaining balance: ${playerMoney[unit]}");
-            UpdateUI();
-        }
-    }
-
-    public void UpdateUI()
-    {
-        PathClickMovement currentUnit = TurnManager.Instance != null ? TurnManager.Instance.CurrentUnit : null;
-        if (currentUnit == null) return;
-
-        if (moneyDisplayText != null)
-            moneyDisplayText.text = $"Money: <b>${GetMoney(currentUnit)} / ${winMoneyAmount}</b>";
-
         if (activeQuestText != null)
         {
             QuestData active = activeQuests.ContainsKey(currentUnit) ? activeQuests[currentUnit] : null;

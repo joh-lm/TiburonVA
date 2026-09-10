@@ -50,7 +50,7 @@ public class NodeConnection : MonoBehaviour
         // Refresh range visualizer during the active turn
         if (TurnManager.Instance != null)
         {
-            TurnManager.Instance.HighlightReachableNodes();
+            TurnManager.Instance.UpdateReachableHighlights();
         }
     }
 

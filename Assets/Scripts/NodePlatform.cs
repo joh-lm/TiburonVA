@@ -54,17 +54,7 @@ public class NodePlatform : MonoBehaviour
     {
         if (glowOverlay == null)
         {
-            glowOverlay = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            glowOverlay.name = "GlowOverlay";
-            glowOverlay.transform.SetParent(transform);
-            
-            float surfaceY = platformCollider != null ? platformCollider.bounds.extents.y + 0.02f : 0.52f;
-            glowOverlay.transform.localPosition = new Vector3(0f, surfaceY, 0f);
-            glowOverlay.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            glowOverlay.transform.localScale = Vector3.one * (GetTopSurfaceRadius() * 1.8f);
-
-            Collider col = glowOverlay.GetComponent<Collider>();
-            if (col != null) Destroy(col);
+            Debug.Log("Glow Overlay required!");
         }
 
         overlayRenderer = glowOverlay.GetComponent<Renderer>();
@@ -161,6 +151,7 @@ public class NodePlatform : MonoBehaviour
 
         PathClickMovement activeCharacter = TurnManager.Instance.CurrentUnit;
         if (activeCharacter == null) return;
+        PlayerInventory activeInventory = activeCharacter.GetComponent<PlayerInventory>();
 
         NodePlatform currentUnitNode = GetNodeAtPosition(activeCharacter.transform.position);
 
@@ -174,9 +165,8 @@ public class NodePlatform : MonoBehaviour
         {
             int moveCost = currentUnitNode.CalculateGraphMoveCost(this, activeCharacter);
 
-            if (TurnManager.Instance.CanAfford(moveCost))
+            if (activeInventory.TryDeductEnergy(moveCost))
             {
-                TurnManager.Instance.DeductEnergy(moveCost);
                 float autoRadius = GetTopSurfaceRadius();
 
                 Action arrivalHandler = null;
@@ -200,7 +190,8 @@ public class NodePlatform : MonoBehaviour
     public void ProcessNodeInteractions(PathClickMovement unit)
     {
         if (unit == null || nodeType == NodeType.Junction) return;
-
+        
+        TurnManager.Instance.UpdateReachableHighlights();
         LocationQuestDeck questDeck = GetComponent<LocationQuestDeck>();
 
         // 1. Check if the unit satisfies an existing active quest
