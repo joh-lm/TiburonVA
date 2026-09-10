@@ -133,10 +133,6 @@ public class QuestManager : MonoBehaviour
         }
 
         Debug.Log($"[Quest Completed] {completedQuest.questTitle}! Granted ${completedQuest.rewardMoney} and {completedQuest.rewardEnergy} Energy.");
-
-        // Immediately check if a queued quest can activate
-        TryAutoPromoteQueuedQuest(unit);
-        UpdateUI(unit);
     }
 
     public void PresentQuestCompletedUI(PathClickMovement unit, NodePlatform location, Action onDismissed)
@@ -144,34 +140,38 @@ public class QuestManager : MonoBehaviour
         if (unit == null || !activeQuests.ContainsKey(unit)) return;
 
         QuestData completedQuest = activeQuests[unit];
-        // Give Completed Quest rewards
+        // 1. Give Completed Quest rewards
         awardQuestRewards(unit, completedQuest);
 
-        // 1. Populate Title and Description
+        // 2. Clear active quest from tracking dictionary
+        activeQuests.Remove(unit);
+
+        // 3. Populate Title and Description
         if (completedTitleText != null) 
             completedTitleText.text = $"Quest Completed: {completedQuest.questTitle}!";
         
         if (completedDescriptionText != null) 
             completedDescriptionText.text = completedQuest.description;
 
-        // 2. Build Dynamic Reward String from Scriptable Object
+        // 4. Build Dynamic Reward String from Scriptable Object
         if (completedRewardsText != null)
         {
             string formattedRewards = BuildRewardString(completedQuest);
             completedRewardsText.text = formattedRewards;
         }
 
-        // 3. Store callback for panel dismissal
+        // 5. Store callback for panel dismissal
         onDismissCallback = onDismissed;
 
-        // 4. Clear active quest from tracking dictionary
-        activeQuests.Remove(unit);
+        // 6. check if a queued quest can activate
+        TryAutoPromoteQueuedQuest(unit);
 
-        // 5. Display Panel
+        // 7. Display Panel
         if (questCompletedPanel != null)
         {
             questCompletedPanel.SetActive(true);
         }
+        UpdateUI(unit);
     }
 
     /// <summary>
