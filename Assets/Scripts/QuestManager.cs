@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using TMPro;
 
 public class QuestManager : MonoBehaviour
@@ -15,6 +16,13 @@ public class QuestManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI activeQuestText;
     [SerializeField] private TextMeshProUGUI queuedQuestText;
     [SerializeField] private TextMeshProUGUI moneyDisplayText;
+
+    [Header("Quest Completed UI Panel References")]
+    [SerializeField] private GameObject questCompletedPanel;
+    [SerializeField] private TextMeshProUGUI completedTitleText;
+    [SerializeField] private TextMeshProUGUI completedDescriptionText;
+    [SerializeField] private TextMeshProUGUI completedRewardsText;
+    [SerializeField] private Button dismissCompletedButton;
 
     [Header("Quest Offer UI Prompt")]
     [SerializeField] private GameObject questPromptPanel;
@@ -32,6 +40,7 @@ public class QuestManager : MonoBehaviour
 
     public event Action<PathClickMovement, int> OnMoneyChanged;
     public event Action<PathClickMovement> OnGameWon;
+    private Action onDismissCallback;
 
     private void Awake()
     {
@@ -41,6 +50,16 @@ public class QuestManager : MonoBehaviour
             return;
         }
         Instance = this;
+        if (dismissCompletedButton != null)
+        {
+            // Bind button click listener
+            dismissCompletedButton.onClick.AddListener(OnDismissCompletedPanelClicked);
+        }
+
+        if (questCompletedPanel != null)
+        {
+            questCompletedPanel.SetActive(false);
+        }
     }
 
     private void Start()
@@ -72,6 +91,125 @@ public class QuestManager : MonoBehaviour
         TryAutoPromoteQueuedQuest(currentUnit);
 
         UpdateUI();
+    }
+
+    public bool HasFulfilledQuest(PathClickMovement unit, NodePlatform currentLocation)
+    {
+        if (unit == null || !activeQuests.ContainsKey(unit) || activeQuests[unit] == null) return false;
+
+        QuestData currentQuest = activeQuests[unit];
+        bool goalReached = false;
+
+        if (currentQuest.goalType == QuestGoalType.VisitLocation)
+        {
+            if (currentLocation != null)
+            {
+                goalReached = string.Equals(currentLocation.name, currentQuest.targetLocationName, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(currentLocation.gameObject.name, currentQuest.targetLocationName, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        else if (currentQuest.goalType == QuestGoalType.VisitPlayer)
+        {
+            if (TurnManager.Instance != null)
+            {
+                foreach (PathClickMovement playerUnit in TurnManager.Instance.AllUnits)
+                {
+                    if (playerUnit != null && playerUnit != unit && string.Equals(playerUnit.gameObject.name, currentQuest.targetUnitName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        NodePlatform targetUnitNode = NodePlatform.GetNodeAtPosition(playerUnit.transform.position);
+                        if (targetUnitNode == currentLocation)
+                        {
+                            goalReached = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return goalReached;
+    }
+
+    public void PresentQuestCompletedUI(PathClickMovement unit, NodePlatform location, Action onDismissed)
+    {
+        if (unit == null || !activeQuests.ContainsKey(unit)) return;
+
+        QuestData completedQuest = activeQuests[unit];
+
+        // 1. Populate Title and Description
+        if (completedTitleText != null) 
+            completedTitleText.text = $"Quest Completed: {completedQuest.questTitle}!";
+        
+        if (completedDescriptionText != null) 
+            completedDescriptionText.text = completedQuest.description;
+
+        // 2. Build Dynamic Reward String from Scriptable Object
+        if (completedRewardsText != null)
+        {
+            string formattedRewards = BuildRewardString(completedQuest);
+            completedRewardsText.text = formattedRewards;
+        }
+
+        // 3. Store callback for panel dismissal
+        onDismissCallback = onDismissed;
+
+        // 4. Clear active quest from tracking dictionary
+        activeQuests.Remove(unit);
+
+        // 5. Display Panel
+        if (questCompletedPanel != null)
+        {
+            questCompletedPanel.SetActive(true);
+        }
+    }
+
+    /// <summary>
+    /// Builds a comma-separated reward string ignoring 0 money/energy or empty item names.
+    /// </summary>
+    private string BuildRewardString(QuestData quest)
+    {
+        if (quest == null) return "Rewards: None";
+
+        List<string> rewardsList = new List<string>();
+
+        // Check reward money
+        if (quest.rewardMoney > 0)
+        {
+            rewardsList.Add($"+${quest.rewardMoney}");
+        }
+
+        // Check reward energy
+        if (quest.rewardEnergy > 0)
+        {
+            rewardsList.Add($"+{quest.rewardEnergy} Energy");
+        }
+
+        // Check reward item name
+        if (!string.IsNullOrEmpty(quest.rewardItemName))
+        {
+            rewardsList.Add(quest.rewardItemName);
+        }
+
+        if (rewardsList.Count == 0)
+        {
+            return "Rewards: None";
+        }
+
+        return "Rewards: " + string.Join(", ", rewardsList);
+    }
+
+    private void OnDismissCompletedPanelClicked()
+    {
+        // Hide the Quest Completed UI panel
+        if (questCompletedPanel != null)
+        {
+            questCompletedPanel.SetActive(false);
+        }
+
+        // Execute the delayed callback to prompt the new Quest Offer UI
+        Action callbackToExecute = onDismissCallback;
+        onDismissCallback = null; // Clear reference
+        
+        callbackToExecute?.Invoke();
     }
 
     public bool CanDrawQuest(PathClickMovement unit)

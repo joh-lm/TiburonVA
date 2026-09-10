@@ -201,12 +201,28 @@ public class NodePlatform : MonoBehaviour
     {
         if (unit == null || nodeType == NodeType.Junction) return;
 
-        if (QuestManager.Instance != null)
-        {
-            QuestManager.Instance.CheckAndFulfillQuest(unit, this);
-        }
-
         LocationQuestDeck questDeck = GetComponent<LocationQuestDeck>();
+
+        // 1. Check if the unit satisfies an existing active quest
+        if (QuestManager.Instance != null && QuestManager.Instance.HasFulfilledQuest(unit, this))
+        {
+            // Present the Quest Completed UI with Title, Description, and Rewards.
+            // Pass a callback that executes ONLY when the player clicks/dismisses the panel.
+            QuestManager.Instance.PresentQuestCompletedUI(unit, this, () =>
+            {
+                // Callback: Draw and present the new quest offer AFTER the completed UI is dismissed
+                TryPresentNewQuestOffer(unit, questDeck);
+            });
+        }
+        else
+        {
+            // No quest was fulfilled, directly check for new quest offers as usual
+            TryPresentNewQuestOffer(unit, questDeck);
+        }
+    }
+
+    private void TryPresentNewQuestOffer(PathClickMovement unit, LocationQuestDeck questDeck)
+    {
         if (questDeck != null && QuestManager.Instance != null && QuestManager.Instance.CanDrawQuest(unit))
         {
             QuestData drawnQuest = questDeck.DrawQuest();
