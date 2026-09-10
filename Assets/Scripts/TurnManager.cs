@@ -136,7 +136,9 @@ public class TurnManager : MonoBehaviour
         NodePlatform currentNode = NodePlatform.GetNodeAtPosition(CurrentUnit.transform.position);
         if (currentNode != null)
         {
-            HashSet<NodePlatform> reachableNodes = NodePlatform.GetReachableNodes(currentNode, CurrentEnergy);
+            // Pass CurrentUnit so GetReachableNodes evaluates HasBoat permissions!
+            HashSet<NodePlatform> reachableNodes = NodePlatform.GetReachableNodes(currentNode, CurrentEnergy, CurrentUnit);
+            
             foreach (NodePlatform node in reachableNodes)
             {
                 node.SetReachableState(true);

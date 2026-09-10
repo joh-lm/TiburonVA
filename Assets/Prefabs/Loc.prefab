@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 4879494871329830668}
   - component: {fileID: 4962721099008776110}
   - component: {fileID: -3079825842745543403}
+  - component: {fileID: -4158148114989329762}
   m_Layer: 6
   m_Name: Loc
   m_TagString: Untagged
@@ -129,10 +130,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: deaa80343f87d834d9e0a84244a2a2bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NodePlatform
-  neighbors:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  nodeType: 0
+  connections: []
   baseMoveCost: 1
   defaultColor: {r: 0.7803922, g: 0.76470596, b: 0.3019608, a: 1}
   hoverColor: {r: 0.5219849, g: 0.9150943, b: 0.20287468, a: 1}
@@ -153,6 +152,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LocationQuestDeck
   locationQuests: []
+--- !u!114 &-4158148114989329762
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2925152524347207684}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.AI.Navigation::Unity.AI.Navigation.NavMeshModifier
+  m_SerializedVersion: 0
+  m_OverrideArea: 1
+  m_Area: 6
+  m_OverrideGenerateLinks: 0
+  m_GenerateLinks: 0
+  m_IgnoreFromBuild: 0
+  m_ApplyToChildren: 1
+  m_AffectedAgents: ffffffff
 --- !u!1 &4115031698464103359
 GameObject:
   m_ObjectHideFlags: 0

@@ -25,6 +25,12 @@ public class PlayerInventory : MonoBehaviour
             movement.UpdateWaterTraversalPermission(hasBoat);
         }
 
+        // Refresh glows on reachable water locations
+        if (TurnManager.Instance != null)
+        {
+            TurnManager.Instance.UpdateReachableHighlights();
+        }
+
         OnInventoryChanged?.Invoke();
         Debug.Log($"<color=cyan>[Inventory]</color> {gameObject.name} HasBoat set to: {hasBoat}");
     }

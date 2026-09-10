@@ -112,26 +112,34 @@ public class NodePlatform : MonoBehaviour
     private void OnMouseEnter()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+        
+        // Ignore direct hover UI for intermediate Junction nodes
         if (nodeType == NodeType.Junction) return;
 
-        PathClickMovement activeUnit = TurnManager.Instance != null ? TurnManager.Instance.CurrentUnit : null;
-        if (activeUnit == null) return;
-
-        NodePlatform currentUnitNode = GetNodeAtPosition(activeUnit.transform.position);
-        if (currentUnitNode != null)
+        if (platformRenderer != null)
         {
-            int cost = currentUnitNode.CalculateGraphMoveCost(this, activeUnit);
-            bool canAfford = TurnManager.Instance.CanAfford(cost);
+            platformRenderer.material.color = hoverColor;
+        }
 
-            if (platformRenderer != null)
+        PathClickMovement activeUnit = TurnManager.Instance != null ? TurnManager.Instance.CurrentUnit : null;
+        if (activeUnit != null)
+        {
+            NodePlatform currentUnitNode = GetNodeAtPosition(activeUnit.transform.position);
+            if (currentUnitNode != null)
             {
-                platformRenderer.material.color = canAfford ? hoverColor : unreachableHoverColor;
-            }
+                // Calculate cost using the weighted graph search
+                int cost = currentUnitNode.CalculateGraphMoveCost(this, activeUnit);
+                bool canAfford = TurnManager.Instance.CanAfford(cost);
 
-            TurnManager.Instance.ShowHoverCost(cost, gameObject.name);
+                if (platformRenderer != null)
+                {
+                    platformRenderer.material.color = canAfford ? hoverColor : unreachableHoverColor;
+                }
+
+                TurnManager.Instance.ShowHoverCost(cost, gameObject.name);
+            }
         }
     }
-
     private void OnMouseExit()
     {
         if (platformRenderer != null)
@@ -274,36 +282,47 @@ public class NodePlatform : MonoBehaviour
         return reachable;
     }
 
+    /// <summary>
+    /// Calculates energy move cost between Location platforms using a weighted BFS graph search.
+    /// Junctions with BaseMoveCost = 0 add 0 cost to the path traversal.
+    /// </summary>
     public int CalculateGraphMoveCost(NodePlatform targetNode, PathClickMovement unit = null)
     {
         if (targetNode == null || targetNode == this) return 0;
 
-        Queue<(NodePlatform node, int depth)> queue = new Queue<(NodePlatform, int)>();
-        HashSet<NodePlatform> visited = new HashSet<NodePlatform>();
+        // Queue stores (Current Node, Accumulative Energy Cost)
+        Queue<(NodePlatform node, int costSoFar)> queue = new Queue<(NodePlatform, int)>();
+        Dictionary<NodePlatform, int> minCostToNode = new Dictionary<NodePlatform, int>();
 
         queue.Enqueue((this, 0));
-        visited.Add(this);
+        minCostToNode[this] = 0;
 
         while (queue.Count > 0)
         {
-            var (currentNode, currentDepth) = queue.Dequeue();
+            var (currentNode, currentCost) = queue.Dequeue();
 
             if (currentNode == targetNode)
             {
-                return currentDepth;
+                return currentCost;
             }
 
+            // Forward unit reference to ensure water/boat permissions are checked across junctions
             foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors(unit))
             {
-                if (neighbor != null && !visited.Contains(neighbor))
+                if (neighbor == null) continue;
+
+                // Add the neighbor's specific move cost (Junctions set to 0 add 0 energy)
+                int newCost = currentCost + neighbor.BaseMoveCost;
+
+                if (!minCostToNode.ContainsKey(neighbor) || newCost < minCostToNode[neighbor])
                 {
-                    visited.Add(neighbor);
-                    queue.Enqueue((neighbor, currentDepth + 1));
+                    minCostToNode[neighbor] = newCost;
+                    queue.Enqueue((neighbor, newCost));
                 }
             }
         }
 
-        return 999;
+        return 999; // Fallback distance if unreachable
     }
 
     public static NodePlatform GetNodeAtPosition(Vector3 position)

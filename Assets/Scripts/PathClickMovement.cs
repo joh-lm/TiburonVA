@@ -1,22 +1,26 @@
+using System;
 using UnityEngine;
 using UnityEngine.AI;
-using System;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class PathClickMovement : MonoBehaviour
 {
     [Header("Visual Models")]
+    [Tooltip("The standard character mesh GameObject.")]
     [SerializeField] private GameObject characterModel;
+
+    [Tooltip("The boat mesh GameObject.")]
     [SerializeField] private GameObject boatModel;
 
     private NavMeshAgent agent;
     private Animator animator;
+    private PlayerInventory inventory;
 
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
     private static readonly int IsGroundedHash = Animator.StringToHash("IsGrounded");
 
     private bool wasMoving = false;
-    private bool isInBoatMode = false;
+    private bool isInWater = false;
 
     public event Action OnDestinationReached;
 
@@ -26,6 +30,7 @@ public class PathClickMovement : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
+        inventory = GetComponent<PlayerInventory>();
 
         if (boatModel != null) boatModel.SetActive(false);
         if (characterModel != null) characterModel.SetActive(true);
@@ -33,10 +38,34 @@ public class PathClickMovement : MonoBehaviour
 
     private void Start()
     {
-        PlayerInventory inventory = GetComponent<PlayerInventory>();
         if (inventory != null)
         {
             UpdateWaterTraversalPermission(inventory.HasBoat);
+        }
+    }
+
+    private void Update()
+    {
+        if (agent == null) return;
+
+        // 1. Sample NavMesh surface directly beneath character position to trigger boat model swap
+        CheckWaterSurfaceStatus();
+
+        // 2. Drive Animator parameters for character mesh
+        if (animator != null && characterModel != null && characterModel.activeSelf)
+        {
+            float currentSpeed = agent.velocity.magnitude / Mathf.Max(0.1f, agent.speed);
+            animator.SetFloat(SpeedHash, currentSpeed);
+
+            bool grounded = agent.isOnNavMesh;
+            animator.SetBool(IsGroundedHash, grounded);
+        }
+
+        // 3. Detect movement arrival and trigger turn/node callbacks
+        if (wasMoving && !IsMoving)
+        {
+            wasMoving = false;
+            OnDestinationReached?.Invoke();
         }
     }
 
@@ -69,72 +98,31 @@ public class PathClickMovement : MonoBehaviour
         }
     }
 
-    private void Update()
+    private void CheckWaterSurfaceStatus()
     {
-        if (agent == null) return;
+        if (!agent.isOnNavMesh) return;
 
-        // 1. Model Swap based on NavMeshLink status
-        HandleLinkModelSwap();
-
-        // 2. Drive Animator parameters
-        if (animator != null && characterModel != null && characterModel.activeSelf)
-        {
-            float currentSpeed = agent.velocity.magnitude / Mathf.Max(0.1f, agent.speed);
-            animator.SetFloat(SpeedHash, currentSpeed);
-
-            bool grounded = agent.isOnNavMesh;
-            animator.SetBool(IsGroundedHash, grounded);
-        }
-
-        // 3. Detect arrival
-        if (wasMoving && !IsMoving)
-        {
-            wasMoving = false;
-            OnDestinationReached?.Invoke();
-        }
-    }
-
-    private void HandleLinkModelSwap()
-    {
-        if (agent == null) return;
-
-        // 1. Check if the agent is actively crossing a NavMeshLink
-        bool onLink = agent.isOnOffMeshLink;
-
-        // 2. Check if the agent is standing directly on a "Water" NavMesh surface
-        bool onWaterArea = IsStandingOnWaterArea();
-
-        // Unit should be in boat mode if either condition is true
-        bool shouldBeInBoat = onLink || onWaterArea;
-
-        if (shouldBeInBoat != isInBoatMode)
-        {
-            isInBoatMode = shouldBeInBoat;
-            SetModelVisualState(isInBoatMode);
-        }
-    }
-
-    private bool IsStandingOnWaterArea()
-    {
-        if (!agent.isOnNavMesh) return false;
-
-        // Sample the NavMesh area directly beneath the agent
+        // Sample position directly under unit transform
         if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 0.8f, NavMesh.AllAreas))
         {
             int waterAreaIndex = NavMesh.GetAreaFromName("Water");
             if (waterAreaIndex >= 0)
             {
                 int waterMask = 1 << waterAreaIndex;
-                return (hit.mask & waterMask) != 0;
+                bool currentlyOnWater = (hit.mask & waterMask) != 0;
+
+                if (currentlyOnWater != isInWater)
+                {
+                    isInWater = currentlyOnWater;
+                    SetModelVisualState(isInWater);
+                }
             }
         }
-
-        return false;
     }
-    
-    private void SetModelVisualState(bool useBoat)
+
+    private void SetModelVisualState(bool onWater)
     {
-        if (characterModel != null) characterModel.SetActive(!useBoat);
-        if (boatModel != null) boatModel.SetActive(useBoat);
+        if (characterModel != null) characterModel.SetActive(!onWater);
+        if (boatModel != null) boatModel.SetActive(onWater);
     }
 }
