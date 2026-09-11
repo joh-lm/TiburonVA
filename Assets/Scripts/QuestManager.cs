@@ -126,13 +126,24 @@ public class QuestManager : MonoBehaviour
         inventory.AddMoney(completedQuest.rewardMoney);
         inventory.AddEnergy(completedQuest.rewardEnergy);
 
+        if (!string.IsNullOrEmpty(completedQuest.rewardItemName))
+        {
+            inventory.TryAddItem(completedQuest.rewardItemName);
+        }
+
         // Check if this reward pushed the player past the win threshold
         if (TurnManager.Instance != null)
         {
             TurnManager.Instance.CheckWinCondition(unit);
         }
 
-        Debug.Log($"[Quest Completed] {completedQuest.questTitle}! Granted ${completedQuest.rewardMoney} and {completedQuest.rewardEnergy} Energy.");
+        Debug.Log($"[Quest Completed] {completedQuest.questTitle}! Granted ${completedQuest.rewardMoney}, {completedQuest.rewardEnergy} Energy, and Item: '{completedQuest.rewardItemName}'.");
+        
+        InventoryUI inventoryUI = FindFirstObjectByType<InventoryUI>();
+        if (inventoryUI != null)
+        {
+            inventoryUI.RefreshInventoryUI();
+        }
     }
 
     public void PresentQuestCompletedUI(PathClickMovement unit, NodePlatform location, Action onDismissed)

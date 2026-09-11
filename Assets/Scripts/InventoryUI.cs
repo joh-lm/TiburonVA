@@ -1,45 +1,90 @@
-using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class InventoryUI : MonoBehaviour
 {
-    [Header("UI Indicators")]
-    [SerializeField] private GameObject boatIconImage;
-    [SerializeField] private TextMeshProUGUI inventoryStatusText;
+    [Header("Slot Container")]
+    [SerializeField] private Transform slotContainerParent;
+    [SerializeField] private InventorySlotUI slotPrefab;
+
+    private List<InventorySlotUI> slotPool = new List<InventorySlotUI>();
 
     private void Start()
     {
         if (TurnManager.Instance != null)
         {
-            TurnManager.Instance.OnTurnStarted += RefreshInventoryDisplay;
+            TurnManager.Instance.OnTurnStarted += HandleTurnStarted;
         }
-        RefreshInventoryDisplay(TurnManager.Instance != null ? TurnManager.Instance.CurrentUnit : null);
+
+        RefreshInventoryUI();
     }
 
     private void OnDestroy()
     {
         if (TurnManager.Instance != null)
         {
-            TurnManager.Instance.OnTurnStarted -= RefreshInventoryDisplay;
+            TurnManager.Instance.OnTurnStarted -= HandleTurnStarted;
+        }
+
+        UnbindCurrentInventory();
+    }
+
+    private void HandleTurnStarted(PathClickMovement unit)
+    {
+        RefreshInventoryUI();
+    }
+
+    public void RefreshInventoryUI()
+    {
+        UnbindCurrentInventory();
+
+        PathClickMovement currentUnit = TurnManager.Instance != null ? TurnManager.Instance.CurrentUnit : null;
+        if (currentUnit == null) return;
+
+        PlayerInventory inventory = currentUnit.GetComponent<PlayerInventory>();
+        if (inventory == null) return;
+
+        inventory.OnInventoryChanged += RefreshInventoryUI;
+
+        int totalSlots = inventory.MaxInventorySlots;
+        List<InventoryItem> items = inventory.Items;
+
+        // Ensure UI pool has enough slot instances for max capacity
+        while (slotPool.Count < totalSlots)
+        {
+            InventorySlotUI newSlot = Instantiate(slotPrefab, slotContainerParent);
+            slotPool.Add(newSlot);
+        }
+
+        // Loop through ALL max slots to render populated or empty UI boxes
+        for (int i = 0; i < slotPool.Count; i++)
+        {
+            if (i < totalSlots)
+            {
+                slotPool[i].gameObject.SetActive(true);
+                InventoryItem item = (i < items.Count) ? items[i] : null;
+                
+                // Pass item (or null for empty) to slot setup
+                slotPool[i].SetupSlot(i, item, inventory); 
+            }
+            else
+            {
+                // Disable extra slots if character capacity decreases
+                slotPool[i].gameObject.SetActive(false); 
+            }
         }
     }
 
-    public void RefreshInventoryDisplay(PathClickMovement currentUnit)
+    private void UnbindCurrentInventory()
     {
-        if (currentUnit == null) return;
-
-        PlayerInventory inv = currentUnit.GetComponent<PlayerInventory>();
-        bool hasBoat = inv != null && inv.HasBoat;
-
-        if (boatIconImage != null)
+        PathClickMovement currentUnit = TurnManager.Instance != null ? TurnManager.Instance.CurrentUnit : null;
+        if (currentUnit != null)
         {
-            boatIconImage.SetActive(hasBoat);
-        }
-
-        if (inventoryStatusText != null)
-        {
-            inventoryStatusText.text = $"<b>Inventory:</b> {(hasBoat ? "Boat" : "Empty")}";
+            PlayerInventory inventory = currentUnit.GetComponent<PlayerInventory>();
+            if (inventory != null)
+            {
+                inventory.OnInventoryChanged -= RefreshInventoryUI;
+            }
         }
     }
 }
