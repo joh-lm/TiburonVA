@@ -31,6 +31,10 @@ public class NodePlatform : MonoBehaviour
     [SerializeField] private GameObject glowOverlay;
     [SerializeField] private Color glowColor = new Color(0.2f, 0.8f, 1f, 0.5f);
 
+    [Header("Hover UI Settings")]
+    [SerializeField] private LocationHoverUI uiPrefab;
+    [SerializeField] private float uiHeightOffset = 1.5f;
+
     [Header("Edge Safety Padding")]
     [SerializeField] private float edgePadding = 0.2f;
 
@@ -38,6 +42,7 @@ public class NodePlatform : MonoBehaviour
     private Collider platformCollider;
     private Renderer overlayRenderer;
     private bool isReachable = false;
+    private LocationHoverUI activeUIInstance;
 
     public NodeType Type => nodeType;
     public List<NodeConnection> Connections => connections;
@@ -55,6 +60,7 @@ public class NodePlatform : MonoBehaviour
         if (glowOverlay == null)
         {
             Debug.Log("Glow Overlay required!");
+            return;
         }
 
         overlayRenderer = glowOverlay.GetComponent<Renderer>();
@@ -70,7 +76,6 @@ public class NodePlatform : MonoBehaviour
 
     public void SetReachableState(bool reachable)
     {
-        // Only show reachable glow overlays on actual Locations, not on Junction waypoints
         if (nodeType == NodeType.Junction) return;
 
         isReachable = reachable;
@@ -102,8 +107,6 @@ public class NodePlatform : MonoBehaviour
     private void OnMouseEnter()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
-        
-        // Ignore direct hover UI for intermediate Junction nodes
         if (nodeType == NodeType.Junction) return;
 
         if (platformRenderer != null)
@@ -117,7 +120,6 @@ public class NodePlatform : MonoBehaviour
             NodePlatform currentUnitNode = GetNodeAtPosition(activeUnit.transform.position);
             if (currentUnitNode != null)
             {
-                // Calculate cost using the weighted graph search
                 int cost = currentUnitNode.CalculateGraphMoveCost(this, activeUnit);
                 bool canAfford = TurnManager.Instance.CanAfford(cost);
 
@@ -126,10 +128,11 @@ public class NodePlatform : MonoBehaviour
                     platformRenderer.material.color = canAfford ? hoverColor : unreachableHoverColor;
                 }
 
-                TurnManager.Instance.ShowHoverCost(cost, gameObject.name);
+                ShowHoverUI(cost, canAfford);
             }
         }
     }
+
     private void OnMouseExit()
     {
         if (platformRenderer != null)
@@ -137,9 +140,34 @@ public class NodePlatform : MonoBehaviour
             platformRenderer.material.color = defaultColor;
         }
 
-        if (TurnManager.Instance != null)
+        HideHoverUI();
+    }
+
+    private void ShowHoverUI(int cost, bool canAfford)
+{
+    if (uiPrefab == null) return;
+
+    if (activeUIInstance == null)
+    {
+        Vector3 spawnPos = transform.position + Vector3.up * uiHeightOffset;
+        activeUIInstance = Instantiate(uiPrefab, spawnPos, Quaternion.identity);
+    }
+
+    activeUIInstance.transform.position = transform.position + Vector3.up * uiHeightOffset;
+
+    // Fetch exact remaining quest count from LocationQuestDeck component
+    LocationQuestDeck questDeck = GetComponent<LocationQuestDeck>();
+    int questCount = questDeck != null ? questDeck.AvailableQuestCount : 0;
+
+    activeUIInstance.Setup(gameObject.name, cost, canAfford, questCount);
+    activeUIInstance.gameObject.SetActive(true);
+}
+
+    private void HideHoverUI()
+    {
+        if (activeUIInstance != null)
         {
-            TurnManager.Instance.HideHoverCost();
+            activeUIInstance.gameObject.SetActive(false);
         }
     }
 
@@ -178,7 +206,7 @@ public class NodePlatform : MonoBehaviour
                 activeCharacter.OnDestinationReached += arrivalHandler;
 
                 activeCharacter.MoveToLocation(transform.position, autoRadius);
-                TurnManager.Instance.HideHoverCost();
+                HideHoverUI();
             }
             else
             {
@@ -194,20 +222,15 @@ public class NodePlatform : MonoBehaviour
         TurnManager.Instance.UpdateReachableHighlights();
         LocationQuestDeck questDeck = GetComponent<LocationQuestDeck>();
 
-        // 1. Check if the unit satisfies an existing active quest
         if (QuestManager.Instance != null && QuestManager.Instance.HasFulfilledQuest(unit, this))
         {
-            // Present the Quest Completed UI with Title, Description, and Rewards.
-            // Pass a callback that executes ONLY when the player clicks/dismisses the panel.
             QuestManager.Instance.PresentQuestCompletedUI(unit, this, () =>
             {
-                // Callback: Draw and present the new quest offer AFTER the completed UI is dismissed
                 TryPresentNewQuestOffer(unit, questDeck);
             });
         }
         else
         {
-            // No quest was fulfilled, directly check for new quest offers as usual
             TryPresentNewQuestOffer(unit, questDeck);
         }
     }
@@ -228,7 +251,6 @@ public class NodePlatform : MonoBehaviour
     {
         List<NodePlatform> validNeighbors = new List<NodePlatform>();
 
-        // Check if unit has a boat
         PlayerInventory inv = unit != null ? unit.GetComponent<PlayerInventory>() : null;
         bool unitHasBoat = inv != null && inv.HasBoat;
 
@@ -236,7 +258,6 @@ public class NodePlatform : MonoBehaviour
         {
             if (conn != null && !conn.IsBlocked)
             {
-                // Block water connections if unit does NOT have a boat
                 if (conn.IsWaterRoute && !unitHasBoat) continue;
 
                 NodePlatform neighbor = conn.GetOtherNode(this);
@@ -249,19 +270,12 @@ public class NodePlatform : MonoBehaviour
 
         return validNeighbors;
     }
-    
-    /// <summary>
-    /// Calculates energy move cost between Location platforms using a weighted graph search.
-    /// Respects node.BaseMoveCost for intermediate Junctions and finds the path with the minimum total energy cost.
-    /// </summary>
+
     public int CalculateGraphMoveCost(NodePlatform targetNode, PathClickMovement unit = null)
     {
         if (targetNode == null || targetNode == this) return 0;
 
-        // Dictionary tracking the lowest accumulated cost found to reach each node
         Dictionary<NodePlatform, int> minCostToNode = new Dictionary<NodePlatform, int>();
-        
-        // Priority queue simulation sorting candidate nodes by accumulated energy cost
         List<(NodePlatform node, int costSoFar)> openSet = new List<(NodePlatform, int)>();
 
         openSet.Add((this, 0));
@@ -269,7 +283,6 @@ public class NodePlatform : MonoBehaviour
 
         while (openSet.Count > 0)
         {
-            // 1. Always evaluate the node with the absolute lowest accumulated energy cost first
             openSet.Sort((a, b) => a.costSoFar.CompareTo(b.costSoFar));
             var (currentNode, currentCost) = openSet[0];
             openSet.RemoveAt(0);
@@ -279,15 +292,12 @@ public class NodePlatform : MonoBehaviour
                 return currentCost;
             }
 
-            // Skip processing if we already found a cheaper route to currentNode
             if (currentCost > minCostToNode[currentNode]) continue;
 
-            // 2. Expand unblocked neighbors (evaluating boat/water permissions)
             foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors(unit))
             {
                 if (neighbor == null) continue;
 
-                // Use the neighbor's actual BaseMoveCost (Junctions set to 0 add 0; water/land nodes add their assigned cost)
                 int edgeCost = neighbor.BaseMoveCost;
                 int newCost = currentCost + edgeCost;
 
@@ -299,12 +309,9 @@ public class NodePlatform : MonoBehaviour
             }
         }
 
-        return 999; // Fallback if unreachable
+        return 999;
     }
 
-    /// <summary>
-    /// Resolves all reachable Location platforms within maxEnergy using weighted cost propagation.
-    /// </summary>
     public static HashSet<NodePlatform> GetReachableNodes(NodePlatform startNode, int maxEnergy, PathClickMovement unit = null)
     {
         HashSet<NodePlatform> reachable = new HashSet<NodePlatform>();
@@ -380,20 +387,11 @@ public class NodePlatform : MonoBehaviour
         return 0.5f;
     }
 
-    private void OnDrawGizmosSelected()
+    private void OnDestroy()
     {
-        Gizmos.color = Color.cyan;
-        foreach (NodeConnection connection in connections)
+        if (activeUIInstance != null)
         {
-            if (connection != null)
-            {
-                NodePlatform target = connection.GetOtherNode(this);
-                if (target != null)
-                {
-                    Gizmos.color = connection.IsBlocked ? Color.red : Color.cyan;
-                    Gizmos.DrawLine(transform.position + Vector3.up * 0.5f, target.transform.position + Vector3.up * 0.5f);
-                }
-            }
+            Destroy(activeUIInstance.gameObject);
         }
     }
 }

@@ -9,6 +9,9 @@ public class LocationQuestDeck : MonoBehaviour
 
     private List<QuestData> availablePool = new List<QuestData>();
 
+    public bool HasAvailableQuests => availablePool.Count > 0;
+    public int AvailableQuestCount => availablePool.Count;
+
     private void Awake()
     {
         // Copy all entries from the inspector list (including duplicates)
@@ -48,5 +51,4 @@ public class LocationQuestDeck : MonoBehaviour
         }
     }
 
-    public bool HasAvailableQuests => availablePool.Count > 0;
 }

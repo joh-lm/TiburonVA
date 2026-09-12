@@ -83,6 +83,7 @@ public class PlayerInventory : MonoBehaviour
     public int CompletedQuestCount => completedQuestCount;
     public int CurrentEnergy => currentEnergy;
     public int CurrentMoney => currentMoney;
+    public int MaxEnergy => maxEnergy;
 
     public event Action OnInventoryChanged;
     public event Action OnEnergyChanged;

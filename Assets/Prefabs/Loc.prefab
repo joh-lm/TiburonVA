@@ -138,6 +138,8 @@ MonoBehaviour:
   unreachableHoverColor: {r: 1, g: 0, b: 0, a: 1}
   glowOverlay: {fileID: 4115031698464103359}
   glowColor: {r: 0.2, g: 0.8, b: 1, a: 0.5}
+  uiPrefab: {fileID: 5917522978658978521, guid: 31ed66ffe4784154fa1a761e5dc4cf24, type: 3}
+  uiHeightOffset: 2.5
   edgePadding: 0.2
 --- !u!114 &-3079825842745543403
 MonoBehaviour:

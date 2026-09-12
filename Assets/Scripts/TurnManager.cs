@@ -14,22 +14,22 @@ public class TurnManager : MonoBehaviour
     [SerializeField] private int energyGainPerTurn = 1;
 
     [Header("UI References")]
-    [SerializeField] private TextMeshProUGUI moneyDisplayText;
     [SerializeField] private TextMeshProUGUI turnDisplayText;
-    [SerializeField] private TextMeshProUGUI hoverCostText;
-    [SerializeField] private TextMeshProUGUI energyDisplayText;
+    [SerializeField] private TextMeshProUGUI statsDisplayText;
 
     [Header("Win Conditions")]
     [SerializeField] private int winMoneyAmount = 100;
+    [SerializeField] private int winQuestCount = 3;
 
     private int currentUnitIndex = 0;
     private NodePlatform[] allNodes;
     private bool wasMoving = false;
+
     public PathClickMovement CurrentUnit => units.Count > 0 ? units[currentUnitIndex] : null;
     public List<PathClickMovement> AllUnits => units;
     
     public event Action<PathClickMovement> OnTurnStarted;
-    public event Action<PathClickMovement> OnPlayerWon;
+    public event Action<PathClickMovement, string> OnPlayerWon;
 
     public int CurrentEnergy
     {
@@ -40,6 +40,17 @@ public class TurnManager : MonoBehaviour
             return inventory != null ? inventory.CurrentEnergy : 0;
         }
     }
+
+    public int MaxEnergy
+    {
+        get
+        {
+            if (CurrentUnit == null) return 10;
+            PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
+            return inventory != null ? inventory.MaxEnergy : 10;
+        }
+    }
+
     public int CurrentMoney
     {
         get
@@ -47,6 +58,16 @@ public class TurnManager : MonoBehaviour
             if (CurrentUnit == null) return 0;
             PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
             return inventory != null ? inventory.CurrentMoney : 0;
+        }
+    }
+
+    public int CurrentCompletedQuests
+    {
+        get
+        {
+            if (CurrentUnit == null) return 0;
+            PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
+            return inventory != null ? inventory.CompletedQuestCount : 0;
         }
     }
 
@@ -63,13 +84,11 @@ public class TurnManager : MonoBehaviour
     private void Start()
     {
         allNodes = FindObjectsOfType<NodePlatform>();
-        HideHoverCost();
         InitializeTurnSystem();
     }
 
     private void Update()
     {
-        // Monitor movement completion to refresh the range visualizer once unit arrives
         if (wasMoving && !IsUnitBusy())
         {
             wasMoving = false;
@@ -94,7 +113,6 @@ public class TurnManager : MonoBehaviour
     {
         currentUnitIndex = index % units.Count;
         
-        // Grant turn energy directly to the unit's inventory component
         if (CurrentUnit != null)
         {
             PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
@@ -142,29 +160,21 @@ public class TurnManager : MonoBehaviour
         NodePlatform currentNode = NodePlatform.GetNodeAtPosition(CurrentUnit.transform.position);
         if (currentNode != null)
         {
-            // Calculate reachability passing energy and current unit (for boat permissions)
             HashSet<NodePlatform> reachableNodes = NodePlatform.GetReachableNodes(currentNode, CurrentEnergy, CurrentUnit);
-
+            
             foreach (NodePlatform node in reachableNodes)
             {
-                if (node != null)
-                {
-                    node.SetReachableState(true);
-                }
+                if (node != null) node.SetReachableState(true);
             }
         }
     }
 
     public void ClearReachableHighlights()
     {
-        // Always query active scene nodes dynamically to prevent missing newly spawned or enabled nodes
         NodePlatform[] nodesInScene = FindObjectsOfType<NodePlatform>();
         foreach (NodePlatform node in nodesInScene)
         {
-            if (node != null)
-            {
-                node.SetReachableState(false);
-            }
+            if (node != null) node.SetReachableState(false);
         }
     }
 
@@ -175,32 +185,9 @@ public class TurnManager : MonoBehaviour
             turnDisplayText.text = $"Turn: <b>{CurrentUnit.gameObject.name}</b>";
         }
 
-        if (energyDisplayText != null)
+        if (statsDisplayText != null)
         {
-            energyDisplayText.text = $"Energy: <b>{CurrentEnergy}</b>";
-        }
-
-        if (moneyDisplayText != null)
-        {
-            moneyDisplayText.text = $"Money: <b>${CurrentMoney} / ${winMoneyAmount}</b>";
-        }
-    }
-
-    public void ShowHoverCost(int cost, string targetName)
-    {
-        if (hoverCostText != null)
-        {
-            hoverCostText.gameObject.SetActive(true);
-            string costColor = CanAfford(cost) ? "green" : "red";
-            hoverCostText.text = $"Destination: {targetName} | Cost: <color={costColor}>{cost} Energy</color>";
-        }
-    }
-
-    public void HideHoverCost()
-    {
-        if (hoverCostText != null)
-        {
-            hoverCostText.gameObject.SetActive(false);
+            statsDisplayText.text = $"Energy: <b>{CurrentEnergy}/{MaxEnergy}</b> | Balance: <b>${CurrentMoney}/${winMoneyAmount}</b> | Quests: <b>{CurrentCompletedQuests}/{winQuestCount}</b>";
         }
     }
 
@@ -209,12 +196,19 @@ public class TurnManager : MonoBehaviour
         if (unit == null) return;
 
         PlayerInventory inventory = unit.GetComponent<PlayerInventory>();
-        if (inventory != null && inventory.CurrentMoney >= winMoneyAmount)
+        if (inventory == null) return;
+
+        if (inventory.CurrentMoney >= winMoneyAmount)
         {
-            Debug.Log($"{unit.gameObject.name} has reached ${winMoneyAmount} and won the game!");
-            OnPlayerWon?.Invoke(unit);
-            // Trigger Victory UI or pause game loop
+            string reason = $"reached ${winMoneyAmount}";
+            Debug.Log($"<color=gold>[VICTORY]</color> {unit.gameObject.name} won by reaching ${winMoneyAmount}!");
+            OnPlayerWon?.Invoke(unit, reason);
+        }
+        else if (inventory.CompletedQuestCount >= winQuestCount)
+        {
+            string reason = $"completed {winQuestCount} quests";
+            Debug.Log($"<color=gold>[VICTORY]</color> {unit.gameObject.name} won by completing {winQuestCount} quests!");
+            OnPlayerWon?.Invoke(unit, reason);
         }
     }
-
 }
