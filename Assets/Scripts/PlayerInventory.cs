@@ -119,7 +119,7 @@ public class PlayerInventory : MonoBehaviour
         {
             newItem = new InventoryItem(
                 "Roadblock",
-                "Can be placed on path connections to block unit traversal.",
+                "Can be placed on path connections to block roads.",
                 roadblockSprite, // Assigns the serialized roadblockSprite
                 ItemType.Roadblock,
                 true 
