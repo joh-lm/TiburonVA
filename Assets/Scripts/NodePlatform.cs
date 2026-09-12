@@ -249,87 +249,106 @@ public class NodePlatform : MonoBehaviour
 
         return validNeighbors;
     }
-
-    public static HashSet<NodePlatform> GetReachableNodes(NodePlatform startNode, int maxEnergy, PathClickMovement unit = null)
-    {
-        HashSet<NodePlatform> reachable = new HashSet<NodePlatform>();
-        if (startNode == null || maxEnergy <= 0) return reachable;
-
-        Queue<(NodePlatform node, int costSoFar)> queue = new Queue<(NodePlatform, int)>();
-        Dictionary<NodePlatform, int> bestCost = new Dictionary<NodePlatform, int>();
-
-        queue.Enqueue((startNode, 0));
-        bestCost[startNode] = 0;
-
-        while (queue.Count > 0)
-        {
-            var (currentNode, currentCost) = queue.Dequeue();
-
-            foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors(unit))
-            {
-                int newCost = currentCost + neighbor.BaseMoveCost;
-                if (newCost <= maxEnergy)
-                {
-                    if (!bestCost.ContainsKey(neighbor) || newCost < bestCost[neighbor])
-                    {
-                        bestCost[neighbor] = newCost;
-                        
-                        // Junctions are traversed through, but only Locations are added to reachable destinations
-                        if (neighbor.Type == NodeType.Location)
-                        {
-                            reachable.Add(neighbor);
-                        }
-                        
-                        queue.Enqueue((neighbor, newCost));
-                    }
-                }
-            }
-        }
-
-        return reachable;
-    }
-
+    
     /// <summary>
-    /// Calculates energy move cost between Location platforms using a weighted BFS graph search.
-    /// Junctions with BaseMoveCost = 0 add 0 cost to the path traversal.
+    /// Calculates energy move cost between Location platforms using a weighted graph search.
+    /// Respects node.BaseMoveCost for intermediate Junctions and finds the path with the minimum total energy cost.
     /// </summary>
     public int CalculateGraphMoveCost(NodePlatform targetNode, PathClickMovement unit = null)
     {
         if (targetNode == null || targetNode == this) return 0;
 
-        // Queue stores (Current Node, Accumulative Energy Cost)
-        Queue<(NodePlatform node, int costSoFar)> queue = new Queue<(NodePlatform, int)>();
+        // Dictionary tracking the lowest accumulated cost found to reach each node
         Dictionary<NodePlatform, int> minCostToNode = new Dictionary<NodePlatform, int>();
+        
+        // Priority queue simulation sorting candidate nodes by accumulated energy cost
+        List<(NodePlatform node, int costSoFar)> openSet = new List<(NodePlatform, int)>();
 
-        queue.Enqueue((this, 0));
+        openSet.Add((this, 0));
         minCostToNode[this] = 0;
 
-        while (queue.Count > 0)
+        while (openSet.Count > 0)
         {
-            var (currentNode, currentCost) = queue.Dequeue();
+            // 1. Always evaluate the node with the absolute lowest accumulated energy cost first
+            openSet.Sort((a, b) => a.costSoFar.CompareTo(b.costSoFar));
+            var (currentNode, currentCost) = openSet[0];
+            openSet.RemoveAt(0);
 
             if (currentNode == targetNode)
             {
                 return currentCost;
             }
 
-            // Forward unit reference to ensure water/boat permissions are checked across junctions
+            // Skip processing if we already found a cheaper route to currentNode
+            if (currentCost > minCostToNode[currentNode]) continue;
+
+            // 2. Expand unblocked neighbors (evaluating boat/water permissions)
             foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors(unit))
             {
                 if (neighbor == null) continue;
 
-                // Add the neighbor's specific move cost (Junctions set to 0 add 0 energy)
-                int newCost = currentCost + neighbor.BaseMoveCost;
+                // Use the neighbor's actual BaseMoveCost (Junctions set to 0 add 0; water/land nodes add their assigned cost)
+                int edgeCost = neighbor.BaseMoveCost;
+                int newCost = currentCost + edgeCost;
 
                 if (!minCostToNode.ContainsKey(neighbor) || newCost < minCostToNode[neighbor])
                 {
                     minCostToNode[neighbor] = newCost;
-                    queue.Enqueue((neighbor, newCost));
+                    openSet.Add((neighbor, newCost));
                 }
             }
         }
 
-        return 999; // Fallback distance if unreachable
+        return 999; // Fallback if unreachable
+    }
+
+    /// <summary>
+    /// Resolves all reachable Location platforms within maxEnergy using weighted cost propagation.
+    /// </summary>
+    public static HashSet<NodePlatform> GetReachableNodes(NodePlatform startNode, int maxEnergy, PathClickMovement unit = null)
+    {
+        HashSet<NodePlatform> reachable = new HashSet<NodePlatform>();
+        if (startNode == null || maxEnergy <= 0) return reachable;
+
+        Dictionary<NodePlatform, int> minCostToNode = new Dictionary<NodePlatform, int>();
+        List<(NodePlatform node, int costSoFar)> openSet = new List<(NodePlatform, int)>();
+
+        openSet.Add((startNode, 0));
+        minCostToNode[startNode] = 0;
+
+        while (openSet.Count > 0)
+        {
+            openSet.Sort((a, b) => a.costSoFar.CompareTo(b.costSoFar));
+            var (currentNode, currentCost) = openSet[0];
+            openSet.RemoveAt(0);
+
+            if (currentCost > minCostToNode[currentNode]) continue;
+
+            foreach (NodePlatform neighbor in currentNode.GetUnblockedNeighbors(unit))
+            {
+                if (neighbor == null) continue;
+
+                int edgeCost = neighbor.BaseMoveCost;
+                int newCost = currentCost + edgeCost;
+
+                if (newCost <= maxEnergy)
+                {
+                    if (!minCostToNode.ContainsKey(neighbor) || newCost < minCostToNode[neighbor])
+                    {
+                        minCostToNode[neighbor] = newCost;
+
+                        if (neighbor.Type == NodeType.Location)
+                        {
+                            reachable.Add(neighbor);
+                        }
+
+                        openSet.Add((neighbor, newCost));
+                    }
+                }
+            }
+        }
+
+        return reachable;
     }
 
     public static NodePlatform GetNodeAtPosition(Vector3 position)

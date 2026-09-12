@@ -142,22 +142,29 @@ public class TurnManager : MonoBehaviour
         NodePlatform currentNode = NodePlatform.GetNodeAtPosition(CurrentUnit.transform.position);
         if (currentNode != null)
         {
-            // Pass CurrentUnit so GetReachableNodes evaluates HasBoat permissions!
+            // Calculate reachability passing energy and current unit (for boat permissions)
             HashSet<NodePlatform> reachableNodes = NodePlatform.GetReachableNodes(currentNode, CurrentEnergy, CurrentUnit);
-            
+
             foreach (NodePlatform node in reachableNodes)
             {
-                node.SetReachableState(true);
+                if (node != null)
+                {
+                    node.SetReachableState(true);
+                }
             }
         }
     }
 
     public void ClearReachableHighlights()
     {
-        if (allNodes == null) allNodes = FindObjectsOfType<NodePlatform>();
-        foreach (NodePlatform node in allNodes)
+        // Always query active scene nodes dynamically to prevent missing newly spawned or enabled nodes
+        NodePlatform[] nodesInScene = FindObjectsOfType<NodePlatform>();
+        foreach (NodePlatform node in nodesInScene)
         {
-            node.SetReachableState(false);
+            if (node != null)
+            {
+                node.SetReachableState(false);
+            }
         }
     }
 
