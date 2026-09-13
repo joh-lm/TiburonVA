@@ -17,9 +17,10 @@ public class TurnManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI turnDisplayText;
     [SerializeField] private TextMeshProUGUI statsDisplayText;
 
-    [Header("Win Conditions")]
+    [Header("Win Conditions (All 3 Required)")]
     [SerializeField] private int winMoneyAmount = 100;
     [SerializeField] private int winQuestCount = 3;
+    [SerializeField] private int winBusinessCount = 1;
 
     private int currentUnitIndex = 0;
     private NodePlatform[] allNodes;
@@ -68,6 +69,16 @@ public class TurnManager : MonoBehaviour
             if (CurrentUnit == null) return 0;
             PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
             return inventory != null ? inventory.CompletedQuestCount : 0;
+        }
+    }
+
+    public int CurrentBusinessesOwned
+    {
+        get
+        {
+            if (CurrentUnit == null) return 0;
+            PlayerInventory inventory = CurrentUnit.GetComponent<PlayerInventory>();
+            return inventory != null ? inventory.BusinessesOwned : 0;
         }
     }
 
@@ -187,7 +198,7 @@ public class TurnManager : MonoBehaviour
 
         if (statsDisplayText != null)
         {
-            statsDisplayText.text = $"Energy: <b>{CurrentEnergy}/{MaxEnergy}</b> | Balance: <b>${CurrentMoney}/${winMoneyAmount}</b> | Quests: <b>{CurrentCompletedQuests}/{winQuestCount}</b>";
+            statsDisplayText.text = $"Energy: <b>{CurrentEnergy}/{MaxEnergy}</b> | Balance: <b>${CurrentMoney}/${winMoneyAmount}</b> | Quests: <b>{CurrentCompletedQuests}/{winQuestCount}</b> | Businesses: <b>{CurrentBusinessesOwned}/{winBusinessCount}</b>";
         }
     }
 
@@ -198,16 +209,15 @@ public class TurnManager : MonoBehaviour
         PlayerInventory inventory = unit.GetComponent<PlayerInventory>();
         if (inventory == null) return;
 
-        if (inventory.CurrentMoney >= winMoneyAmount)
+        bool hasEnoughMoney = inventory.CurrentMoney >= winMoneyAmount;
+        bool hasEnoughQuests = inventory.CompletedQuestCount >= winQuestCount;
+        bool hasEnoughBusinesses = inventory.BusinessesOwned >= winBusinessCount;
+
+        // All three conditions must be satisfied to trigger victory
+        if (hasEnoughMoney && hasEnoughQuests && hasEnoughBusinesses)
         {
-            string reason = $"reached ${winMoneyAmount}";
-            Debug.Log($"<color=gold>[VICTORY]</color> {unit.gameObject.name} won by reaching ${winMoneyAmount}!");
-            OnPlayerWon?.Invoke(unit, reason);
-        }
-        else if (inventory.CompletedQuestCount >= winQuestCount)
-        {
-            string reason = $"completed {winQuestCount} quests";
-            Debug.Log($"<color=gold>[VICTORY]</color> {unit.gameObject.name} won by completing {winQuestCount} quests!");
+            string reason = $"reached ${winMoneyAmount}, completed {winQuestCount} quests, and owned {winBusinessCount} business(es)";
+            Debug.Log($"<color=gold>[VICTORY]</color> {unit.gameObject.name} won by achieving all 3 win conditions!");
             OnPlayerWon?.Invoke(unit, reason);
         }
     }

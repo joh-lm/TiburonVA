@@ -48,7 +48,7 @@ public class NodePlatform : MonoBehaviour
     public List<NodeConnection> Connections => connections;
     public int BaseMoveCost => baseMoveCost;
 
-    private void Awake()
+    protected virtual void Awake()
     {
         platformRenderer = GetComponent<Renderer>();
         platformCollider = GetComponent<Collider>();
@@ -104,7 +104,7 @@ public class NodePlatform : MonoBehaviour
         }
     }
 
-    private void OnMouseEnter()
+    protected virtual void OnMouseEnter()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
         if (nodeType == NodeType.Junction) return;
@@ -133,7 +133,7 @@ public class NodePlatform : MonoBehaviour
         }
     }
 
-    private void OnMouseExit()
+    protected virtual void OnMouseExit()
     {
         if (platformRenderer != null)
         {
@@ -163,7 +163,7 @@ public class NodePlatform : MonoBehaviour
     activeUIInstance.gameObject.SetActive(true);
 }
 
-    private void HideHoverUI()
+    protected void HideHoverUI()
     {
         if (activeUIInstance != null)
         {
@@ -205,7 +205,7 @@ public class NodePlatform : MonoBehaviour
                 };
                 activeCharacter.OnDestinationReached += arrivalHandler;
 
-                activeCharacter.MoveToLocation(transform.position, autoRadius);
+                activeCharacter.MoveToLocation(transform.position, autoRadius, this);
                 HideHoverUI();
             }
             else
@@ -215,7 +215,7 @@ public class NodePlatform : MonoBehaviour
         }
     }
 
-    public void ProcessNodeInteractions(PathClickMovement unit)
+    public virtual void ProcessNodeInteractions(PathClickMovement unit)
     {
         if (unit == null || nodeType == NodeType.Junction) return;
         

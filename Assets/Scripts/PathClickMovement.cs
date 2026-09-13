@@ -12,6 +12,9 @@ public class PathClickMovement : MonoBehaviour
     [Tooltip("The boat mesh GameObject.")]
     [SerializeField] private GameObject boatModel;
 
+    [Header("Node Tracking")]
+    [SerializeField] private NodePlatform currentNode;
+
     private NavMeshAgent agent;
     private Animator animator;
     private PlayerInventory inventory;
@@ -25,6 +28,11 @@ public class PathClickMovement : MonoBehaviour
     public event Action OnDestinationReached;
 
     public bool IsMoving => agent != null && agent.hasPath && agent.remainingDistance > agent.stoppingDistance;
+    public NodePlatform CurrentNode
+    {
+        get => currentNode;
+        set => currentNode = value;
+    }
 
     private void Awake()
     {
@@ -69,8 +77,13 @@ public class PathClickMovement : MonoBehaviour
         }
     }
 
-    public void MoveToLocation(Vector3 destination, float surfaceRadius)
+    public void MoveToLocation(Vector3 destination, float surfaceRadius, NodePlatform targetNode = null)
     {
+        if (targetNode != null)
+        {
+            currentNode = targetNode;
+        }
+
         agent.stoppingDistance = surfaceRadius;
         agent.SetDestination(destination);
         wasMoving = true;

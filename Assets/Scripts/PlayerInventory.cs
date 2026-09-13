@@ -50,6 +50,9 @@ public class PlayerInventory : MonoBehaviour
     [Header("Currency Stats")]
     [SerializeField] private int currentMoney = 0;
 
+    [Header("Business Stats")]
+    [SerializeField] private int businessesOwned = 0;
+
     private int selectedSlotIndex = -1; // -1 means no item selected
 
     public int MaxInventorySlots => maxInventorySlots;
@@ -84,6 +87,11 @@ public class PlayerInventory : MonoBehaviour
     public int CurrentEnergy => currentEnergy;
     public int CurrentMoney => currentMoney;
     public int MaxEnergy => maxEnergy;
+    public int BusinessesOwned
+    {
+        get => businessesOwned;
+        set => businessesOwned = value;
+    }
 
     public event Action OnInventoryChanged;
     public event Action OnEnergyChanged;
