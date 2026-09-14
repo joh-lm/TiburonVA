@@ -140,6 +140,10 @@ public class BusinessNode : NodePlatform
             TurnManager.Instance.UpdateTurnUI();
             TurnManager.Instance.CheckWinCondition(buyer);
         }
+        if (LeaderboardUI.Instance != null)
+        {
+            LeaderboardUI.Instance.RefreshLeaderboard();
+        }
         return true;
     }
     #endregion
