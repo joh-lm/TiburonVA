@@ -70,7 +70,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: bcd5a88bc4bd0be42aa7ed633cda1734, type: 2}
+  - {fileID: 2100000, guid: 588f31e78e8a6b540bc5dd456420ed33, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -169,8 +169,7 @@ MonoBehaviour:
   currentValue: 0
   currentOwner: {fileID: 0}
   turnsSinceLastVisit: 0
-  businessUiPrefab: {fileID: 8001761240693859829, guid: bee13a94a0040e44fb44de5034501e04, type: 3}
-  businessUiHeightOffset: 1.8
+  hoverUI: {fileID: 0}
 --- !u!1 &4115031698464103359
 GameObject:
   m_ObjectHideFlags: 0

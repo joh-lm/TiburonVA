@@ -356,7 +356,8 @@ public class QuestManager : MonoBehaviour
         if (activeQuestText != null)
         {
             QuestData active = activeQuests.ContainsKey(currentUnit) ? activeQuests[currentUnit] : null;
-            activeQuestText.text = active != null ? $"Active Quest: <b>{active.questTitle}</b>" : "Active Quest: <i>None</i>";
+            activeQuestText.text = active != null ? $"Active Quest: <b>{active.questTitle}</b>:\n<i>{active.description}</i>"
+                                                    : "Active Quest: <i>None</i>";
         }
 
         if (queuedQuestText != null)
